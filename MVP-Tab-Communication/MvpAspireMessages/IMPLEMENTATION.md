@@ -14,7 +14,14 @@ flowchart LR
   Api --> Store
 ```
 
-## Flow
+## Scenario 1: `/messages` always full-reloads
+
+When the overview is shown again after navigation away, Blazor creates a **new** `Messages` instance. There is no circuit-scoped list cache on this route, so:
+
+| Return path | What happens |
+| --- | --- |
+| Browser Back | Remount → `OnInitializedAsync` → `GET /api/messages` |
+| **Back to overview** (`NavigateTo`) | Same remount + full list reload |
 
 ```mermaid
 sequenceDiagram
@@ -26,13 +33,47 @@ sequenceDiagram
   U->>O: Open /messages
   O->>A: GET /api/messages
   A-->>O: list + states
-  U->>D: Click row
+  U->>D: Click row (same tab)
+  Note over O: Overview disposed
   D->>A: GET /api/messages/{id}
   U->>D: Change state
   D->>A: PUT /api/messages/{id}/state
-  U->>O: Back to overview
-  O->>A: GET /api/messages
+  U->>O: Back (browser or button)
+  Note over O: New instance remounted
+  O->>A: GET /api/messages (full reload)
 ```
+
+## Scenario 2: `/messages-cache` — cache + new tab
+
+Overview stays mounted in tab A. Detail is tab B (new circuit). Scoped `MessagesListCache` is **per circuit**, so tab B cannot touch tab A’s cache via DI. After Save, tab B publishes on `BroadcastChannel`; tab A applies `Cache.Apply(dto)`.
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant O as Overview tab A
+  participant D as Detail tab B
+  participant A as Api
+  participant BC as BroadcastChannel
+
+  U->>O: Open /messages-cache
+  O->>A: GET /api/messages (once into cache)
+  U->>D: Click row (target=_blank)
+  Note over O: Overview stays mounted
+  D->>A: GET /api/messages/{id}
+  U->>D: Edit state + Save
+  D->>A: PUT /api/messages/{id}/state
+  D->>BC: messageUpdated
+  BC->>O: OnBrowserMessage
+  O->>O: Cache.Apply (one row)
+  D->>D: window.close()
+```
+
+| Concern | Approach |
+| --- | --- |
+| Avoid full list reload | Circuit-scoped `MessagesListCache` |
+| Detail in another tab | `target="_blank"` → new Blazor circuit |
+| Refresh originating overview | `BroadcastChannel` (same browser profile) |
+| Close detail tab | `window.close()` (may be blocked; patch still applied) |
 
 ## States
 

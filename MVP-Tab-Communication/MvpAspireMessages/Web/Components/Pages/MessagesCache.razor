@@ -1,0 +1,112 @@
+@page "/messages-cache"
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+@using MvpAspireMessages.Web.Models
+@using MvpAspireMessages.Web.Services
+@inject MessagesApiClient Api
+@inject MessagesListCache Cache
+@inject MessagesCacheTabBus TabBus
+
+<PageTitle>Messages (cache)</PageTitle>
+
+<div class="messages-header">
+    <div>
+        <h1>Messages (cache)</h1>
+        <p>Click a row to open the detail in a <strong>new browser tab</strong>.</p>
+        <p class="messages-reload-note">
+            This overview keeps a <strong>circuit-scoped cache</strong> (no full reload on remount).
+            Detail Save publishes over <code>BroadcastChannel</code> so <em>this</em> tab patches
+            the matching row without <code>GET /api/messages</code>. Cancel only closes the detail tab.
+        </p>
+    </div>
+</div>
+
+@if (_error is not null)
+{
+    <p class="messages-error">@_error</p>
+}
+else if (Cache.Items is null)
+{
+    <p>Loading…</p>
+}
+else if (Cache.Items.Count == 0)
+{
+    <p>No messages.</p>
+}
+else
+{
+    <div class="message-list" role="list">
+        @foreach (var message in Cache.Items)
+        {
+            <a class="message-row"
+               href="messages-cache/@message.Id"
+               target="_blank"
+               rel="noopener"
+               role="listitem">
+                <div class="message-row-main">
+                    <span class="message-subject">@message.Subject</span>
+                    <span class="message-preview">@Truncate(message.Body, 80)</span>
+                </div>
+                <span class="state-badge state-@message.State.ToString().ToLowerInvariant()">
+                    @FormatState(message.State)
+                </span>
+            </a>
+        }
+    </div>
+}
+
+@code {
+    private string? _error;
+    private bool _listening;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Cache.Changed += OnCacheChanged;
+        try
+        {
+            await Cache.EnsureLoadedAsync(Api);
+            await TabBus.EnsureStartedAsync();
+            TabBus.MessageUpdated += OnRemoteMessageUpdated;
+            _listening = true;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not load messages: {ex.Message}";
+        }
+    }
+
+    private Task OnRemoteMessageUpdated(MessageDto message)
+    {
+        // Patch cache on this circuit; no full list reload.
+        return InvokeAsync(() =>
+        {
+            Cache.Apply(message);
+        });
+    }
+
+    private void OnCacheChanged() => InvokeAsync(StateHasChanged);
+
+    private static string FormatState(MessageState state) => state switch
+    {
+        MessageState.Waiting => "In waiting",
+        MessageState.Processed => "Processed",
+        MessageState.Deleted => "Deleted",
+        _ => state.ToString()
+    };
+
+    private static string Truncate(string value, int max) =>
+        value.Length <= max ? value : value[..(max - 1)] + "…";
+
+    public ValueTask DisposeAsync()
+    {
+        Cache.Changed -= OnCacheChanged;
+        if (_listening)
+        {
+            TabBus.MessageUpdated -= OnRemoteMessageUpdated;
+        }
+
+        // Do not dispose TabBus here — it is circuit-scoped and must survive remounts
+        // within this browser tab. The detail tab uses its own circuit/bus instance.
+        return ValueTask.CompletedTask;
+    }
+}

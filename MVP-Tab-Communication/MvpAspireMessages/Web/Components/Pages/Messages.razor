@@ -10,6 +10,11 @@
     <div>
         <h1>Messages</h1>
         <p>Click a row to open the detail and change its state.</p>
+        <p class="messages-reload-note">
+            This route always reloads the full message list when the page is shown again
+            (browser Back, or <strong>Back to overview</strong>). Leaving the detail remounts
+            this component and re-runs <code>OnInitializedAsync</code> → <code>GET /api/messages</code>.
+        </p>
     </div>
 </div>
 
@@ -47,6 +52,9 @@ else
     private IReadOnlyList<MessageDto>? _messages;
     private string? _error;
 
+    // Intentional: every remount of /messages (first visit, browser Back, NavigateTo overview)
+    // disposes the previous instance and creates a new one, so OnInitializedAsync runs again
+    // and reloads the whole list from the Api. No circuit-scoped cache on this route.
     protected override async Task OnInitializedAsync()
     {
         try

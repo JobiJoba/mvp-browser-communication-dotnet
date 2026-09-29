@@ -48,7 +48,17 @@ a, .btn-link {
 
 .messages-header p {
     color: #444;
-    margin: 0;
+    margin: 0 0 0.5rem;
+}
+
+.messages-reload-note {
+    max-width: 42rem;
+    font-size: 0.9rem;
+    color: #5b6570;
+    padding: 0.65rem 0.85rem;
+    background: #f0f4f8;
+    border-left: 3px solid #1b6ec2;
+    border-radius: 0 4px 4px 0;
 }
 
 .messages-error {
@@ -171,6 +181,13 @@ a, .btn-link {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
+}
+
+.detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
 }
 
 .save-feedback {

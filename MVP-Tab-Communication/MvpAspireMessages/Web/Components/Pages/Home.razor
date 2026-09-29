@@ -6,18 +6,27 @@
 
 <p>
     Baseline Aspire app with a <strong>backend Api</strong> and a <strong>Blazor Server</strong>
-    frontend. The first scenario is a messages inbox: list → detail → change state → back to overview.
-</p>
-
-<p>
-    Later scenarios (navigation strategies, stale list state, browser back, multi-tab, etc.)
-    can share this same shell.
+    frontend. Two navigation scenarios share the same shell:
 </p>
 
 <ol>
-    <li>Start: <code>dotnet run --project AppHost</code></li>
-    <li>Open <a href="http://127.0.0.1:5300/messages">http://127.0.0.1:5300/messages</a></li>
-    <li>Click a message, change its state, then use <strong>Back to overview</strong>.</li>
+    <li>
+        <a href="messages"><strong>/messages</strong></a> — same-tab detail; full list reload on return.
+    </li>
+    <li>
+        <a href="messages-cache"><strong>/messages-cache</strong></a> — detail opens in a
+        <strong>new browser tab</strong>; circuit-scoped list cache; Save notifies the overview
+        via <code>BroadcastChannel</code> and closes the detail tab.
+    </li>
 </ol>
 
-<p><a class="btn btn-primary" href="messages">Open messages</a></p>
+<ol>
+    <li>Start: <code>dotnet run --project AppHost</code></li>
+    <li>Open <a href="http://127.0.0.1:5300/messages-cache">http://127.0.0.1:5300/messages-cache</a></li>
+    <li>Click a message (new tab), change state, <strong>Save</strong> — overview badge updates, detail tab closes.</li>
+</ol>
+
+<p>
+    <a class="btn btn-primary" href="messages">Messages (reload)</a>
+    <a class="btn btn-secondary" href="messages-cache">Messages (cache)</a>
+</p>

@@ -13,6 +13,10 @@ builder.Services.AddHttpClient<MessagesApiClient>(client =>
     client.BaseAddress = new Uri("https+http://api");
 });
 
+// Circuit-scoped: one list cache + BroadcastChannel bus per browser tab (Blazor circuit).
+builder.Services.AddScoped<MessagesListCache>();
+builder.Services.AddScoped<MessagesCacheTabBus>();
+
 var app = builder.Build();
 
 app.MapDefaultEndpoints();
