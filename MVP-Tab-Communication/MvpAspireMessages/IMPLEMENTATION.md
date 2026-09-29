@@ -1,5 +1,7 @@
 # MvpAspireMessages — implementation notes
 
+For a product-style comparison of the three routes (pros/cons, production replicas, BroadcastChannel vs C# bus), see **[SCENARIOS.md](./SCENARIOS.md)**.
+
 ## Architecture
 
 ```mermaid
@@ -74,6 +76,36 @@ sequenceDiagram
 | Detail in another tab | `target="_blank"` → new Blazor circuit |
 | Refresh originating overview | `BroadcastChannel` (same browser profile) |
 | Close detail tab | `window.close()` (may be blocked; patch still applied) |
+
+## Scenario 3: `/messages-cache-server` — cache + C# in-process bus
+
+Same UX as scenario 2. After Save, detail calls `MessagesServerSyncBus.PublishAsync` on the **Web** host. Every subscribed overview circuit (any browser tab hitting this Web instance) gets the DTO and patches its cache. No BroadcastChannel; JS only closes the tab.
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant O as Overview circuit A
+  participant D as Detail circuit B
+  participant Bus as MessagesServerSyncBus
+  participant A as Api
+
+  U->>O: Open /messages-cache-server
+  O->>A: GET /api/messages (once into cache)
+  O->>Bus: Subscribe
+  U->>D: Click row (target=_blank)
+  D->>A: GET /api/messages/{id}
+  U->>D: Edit state + Save
+  D->>A: PUT /api/messages/{id}/state
+  D->>Bus: PublishAsync(dto)
+  Bus->>O: handler → Cache.Apply
+  D->>D: window.close()
+```
+
+| Concern | Approach |
+| --- | --- |
+| Cross-circuit notify | Singleton `MessagesServerSyncBus` on Web |
+| Multi-user same host | Yes — any circuit subscribed on this process |
+| Multi-node Web | Needs backplane (not in this MVP) |
 
 ## States
 

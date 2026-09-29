@@ -1,6 +1,8 @@
 # MvpAspireMessages — messages list / detail (Aspire + Api + Blazor)
 
-Foundation MVP for several navigation / state scenarios in one Aspire app:
+Foundation MVP for several navigation / state scenarios in one Aspire app.
+
+**Compare all three routes (advantages, Azure, PWA, serialization):** [SCENARIOS.md](./SCENARIOS.md)
 
 | Layer | Project | Role |
 | --- | --- | --- |
@@ -16,19 +18,20 @@ web ──HTTP──► api (in-memory messages)
 
 No list cache. Leaving the page disposes the component; coming back (browser **Back** or **Back to overview**) remounts it and always re-runs `OnInitializedAsync` → full `GET /api/messages`.
 
-1. Open overview → click row (same tab) → change state → back.
-2. Overview remounts and reloads the whole list.
-
 ## Scenario 2 — `/messages-cache` (cache + new tab + BroadcastChannel)
 
-Circuit-scoped `MessagesListCache` on the overview tab. Detail opens with `target="_blank"` (new browser tab = new Blazor circuit).
+Circuit-scoped cache. Detail opens in a **new tab**. **Save** → `PUT` Api → browser **`BroadcastChannel`** → overview patches one row → `window.close()`. No Azure extras for the notify path (same browser only).
 
-1. Keep overview open.
-2. Click a row → detail opens in a **new tab**.
-3. Change state → **Save** → `PUT` Api → `BroadcastChannel` notifies the overview → overview **patches one row** (no full list GET) → detail tries `window.close()`.
-4. **Cancel** → close only (no Api write, no broadcast).
+## Scenario 3 — `/messages-cache-server` (cache + new tab + C# bus)
 
-Yes — the originating overview tab can refresh: not via shared DI (circuits don’t share scoped services), but via **same-browser `BroadcastChannel`**. `window.close()` may be blocked by the browser; if so, close the detail tab manually — the overview patch still happened.
+Same UX as scenario 2, but notify is **server-side C#**: singleton `MessagesServerSyncBus` fans out to every subscribed Blazor circuit on **this Web process** (same pattern as `MvpServerSync` drag hub). JS is only used to close the detail tab.
+
+| | Scenario 2 | Scenario 3 |
+| --- | --- | --- |
+| Notify | `BroadcastChannel` (browser) | `MessagesServerSyncBus` (in-process) |
+| Reach | Same browser profile | All circuits on this Web instance |
+| Scale-out Web | Still local to browser | Needs SignalR/Redis backplane |
+| Azure extras for notify | None | None (single Web node) |
 
 ## Prerequisites
 
@@ -46,8 +49,9 @@ dotnet run --project AppHost
 
 1. Open the Aspire dashboard.
 2. Fixed URLs:
-   - **Web (reload):** http://127.0.0.1:5300/messages  
-   - **Web (cache):** http://127.0.0.1:5300/messages-cache  
+   - **Reload:** http://127.0.0.1:5300/messages  
+   - **Cache + BroadcastChannel:** http://127.0.0.1:5300/messages-cache  
+   - **Cache + server bus:** http://127.0.0.1:5300/messages-cache-server  
    - **Api list JSON:** http://127.0.0.1:5305/api/messages  
 
 ## API surface
@@ -64,10 +68,15 @@ dotnet run --project AppHost
 | --- | --- |
 | `Api/Services/MessageStore.cs` | Seeded in-memory messages |
 | `Web/Services/MessagesApiClient.cs` | Typed HTTP client (`https+http://api`) |
-| `Web/Services/MessagesListCache.cs` | Circuit-scoped list cache (scenario 2) |
+| `Web/Services/MessagesListCache.cs` | Circuit-scoped list cache (scenarios 2–3) |
 | `Web/Services/MessagesCacheTabBus.cs` | BroadcastChannel bridge (scenario 2) |
-| `Web/wwwroot/js/messagesCacheChannel.js` | Browser BroadcastChannel + `closeTab` |
+| `Web/Services/MessagesServerSyncBus.cs` | In-process cross-circuit bus (scenario 3) |
+| `Web/Services/TabCloser.cs` | `window.close()` helper (scenario 3) |
+| `Web/wwwroot/js/messagesCacheChannel.js` | BroadcastChannel + close (scenario 2) |
+| `Web/wwwroot/js/tabActions.js` | close only (scenario 3) |
 | `Web/Components/Pages/Messages.razor` | Scenario 1 overview |
 | `Web/Components/Pages/MessageDetail.razor` | Scenario 1 detail |
 | `Web/Components/Pages/MessagesCache.razor` | Scenario 2 overview |
-| `Web/Components/Pages/MessageCacheDetail.razor` | Scenario 2 detail (Save / Cancel) |
+| `Web/Components/Pages/MessageCacheDetail.razor` | Scenario 2 detail |
+| `Web/Components/Pages/MessagesCacheServer.razor` | Scenario 3 overview |
+| `Web/Components/Pages/MessageCacheServerDetail.razor` | Scenario 3 detail |

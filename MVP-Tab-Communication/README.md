@@ -10,7 +10,7 @@ Demos of cross-window drag-and-drop for Blazor Server (.NET 10).
 | [`MvpServerSync/`](MvpServerSync/) | Shared board boxes | In-process hub (no JSInterop) | http://localhost:5202 | [IMPLEMENTATION](MvpServerSync/IMPLEMENTATION.md) |
 | [`MvpAspireRedis/`](MvpAspireRedis/) | Same board as Server Sync | Redis + **web-a** / **web-b** (Aspire AppHost) | Dashboard → **web-a** & **web-b** (:5280 / :5281) | [IMPLEMENTATION](MvpAspireRedis/IMPLEMENTATION.md) |
 | [`MvpAspirePostgres/`](MvpAspirePostgres/) | Same board via **Api** + frontend | Postgres API + SignalR; **web-a** / **web-b** | Dashboard → **web-a** & **web-b** (:5290 / :5291), Api :5295 | [IMPLEMENTATION](MvpAspirePostgres/IMPLEMENTATION.md) |
-| [`MvpAspireMessages/`](MvpAspireMessages/) | Messages list → detail → change state | REST Api + Blazor (Aspire) | http://127.0.0.1:5300/messages, Api :5305 | [IMPLEMENTATION](MvpAspireMessages/IMPLEMENTATION.md) |
+| [`MvpAspireMessages/`](MvpAspireMessages/) | Messages list → detail → change state (3 sync strategies) | REST Api + Blazor (Aspire) | http://127.0.0.1:5300/messages, Api :5305 | [SCENARIOS](MvpAspireMessages/SCENARIOS.md) · [IMPLEMENTATION](MvpAspireMessages/IMPLEMENTATION.md) |
 | [`MvpCaseSidePanelServer/`](MvpCaseSidePanelServer/) | Per-tab managed-case side panel | In-process hub (no JSInterop) | http://localhost:5203 | [IMPLEMENTATION](MvpCaseSidePanelServer/IMPLEMENTATION.md) |
 | [`MvpCaseSidePanelBroadcast/`](MvpCaseSidePanelBroadcast/) | Per-tab managed-case side panel | `BroadcastChannel` + JSInterop | http://localhost:5204 | [IMPLEMENTATION](MvpCaseSidePanelBroadcast/IMPLEMENTATION.md) |
 
