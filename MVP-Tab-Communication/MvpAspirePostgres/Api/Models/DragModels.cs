@@ -32,3 +32,10 @@ public sealed record AcceptDropRequest(
     string SourceCircuitId,
     string TargetZoneId,
     DragPayload Payload);
+
+public enum MoveItemResult
+{
+    Moved,
+    Unchanged,
+    NotFound
+}

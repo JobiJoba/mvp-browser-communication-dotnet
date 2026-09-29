@@ -86,14 +86,27 @@ public sealed class BoardService
         return items;
     }
 
-    public async Task<bool> MoveItemAsync(string itemId, string zoneId, CancellationToken cancellationToken = default)
+    public async Task<MoveItemResult> MoveItemAsync(string itemId, string zoneId, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(zoneId);
-
         await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
 
         await using var conn = await _dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (var existsCmd = conn.CreateCommand())
+        {
+            existsCmd.CommandText = "SELECT zone_id FROM board_items WHERE id = @id";
+            existsCmd.Parameters.AddWithValue("id", itemId);
+            var current = await existsCmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+            if (current is null)
+            {
+                return MoveItemResult.NotFound;
+            }
+
+            if (current is string currentZone && string.Equals(currentZone, zoneId, StringComparison.Ordinal))
+            {
+                return MoveItemResult.Unchanged;
+            }
+        }
+
         await using var cmd = conn.CreateCommand();
         cmd.CommandText =
             """
@@ -107,12 +120,12 @@ public sealed class BoardService
         var updated = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) > 0;
         if (!updated)
         {
-            return false;
+            return MoveItemResult.Unchanged;
         }
 
         await _hub.Clients.All.SendAsync(BoardRealtimeHub.BoardChanged, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
-        return true;
+        return MoveItemResult.Moved;
     }
 
     private static async Task EnsureSeedAsync(NpgsqlConnection conn, CancellationToken cancellationToken)

@@ -45,7 +45,7 @@ flowchart TB
   WB --> API
 ```
 
-Frontends never take a Postgres connection string. Demo uses **one** Api instance.
+Frontends never take a Postgres connection string. Demo uses **one** Api instance. Local run pins loopback `ASPNETCORE_URLS` only in `IsRunMode` so publish/ACA is not stuck on 127.0.0.1.
 
 ---
 
@@ -66,6 +66,10 @@ flowchart LR
 
 Once the DB is behind a service, only that service should notify. Api persists, then pushes `BoardChanged` / `DragEvent` to all frontends.
 
+One SignalR connection is opened **per web replica** (`ApiRealtimeConnection`), not per Blazor circuit. The replica fans events in-process to circuits via `ApiDragSessionHub` / `ApiBoardStore`.
+
+Models and SignalR event names are duplicated across Api and Web on purpose (team boundary). Keep them in sync when changing the contract.
+
 ---
 
 ## What it proves
@@ -73,9 +77,9 @@ Once the DB is behind a service, only that service should notify. Api persists, 
 | Concern | How this MVP handles it |
 | --- | --- |
 | Board items | Api → table `board_items` |
-| Board UI refresh across frontends | SignalR `BoardChanged` |
+| Board UI refresh across frontends | SignalR `BoardChanged` (+ resync on reconnect) |
 | Drag events across frontends | SignalR `DragEvent` |
-| In-flight drag session | Table `drag_sessions` with `expires_at` (~2 min) |
+| In-flight drag session | Table `drag_sessions` with `expires_at` (~2 min); `DragSessionSweeper` deletes expired rows and broadcasts `Cancelled` |
 | Hosting | AppHost: Postgres + **api** + **web-a** + **web-b** |
 | Demo URLs | web **5290 / 5291**, api **5295** |
 
@@ -103,9 +107,11 @@ flowchart TB
   subgraph Backend["Api"]
     BS[BoardService]
     DS[DragSessionService]
+    SW[DragSessionSweeper]
     SR[BoardRealtimeHub]
     BS --> SR
     DS --> SR
+    SW --> DS
   end
   HTTP -->|REST| BS
   HTTP -->|REST| DS
@@ -116,25 +122,29 @@ flowchart TB
 
 | Project | Types |
 | --- | --- |
-| **Api** | `BoardService`, `DragSessionService`, `BoardRealtimeHub`, schema |
+| **Api** | `BoardService`, `DragSessionService`, `DragSessionSweeper`, `BoardRealtimeHub`, schema |
 | **Web** | `BoardApiClient`, `ApiRealtimeConnection`, `ApiBoardStore`, `ApiDragSessionHub` |
 
 ---
 
 ## API surface
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/api/board` | List items |
-| POST | `/api/board/move` | `{ itemId, zoneId }` |
-| POST | `/api/drag/begin` | Start session |
-| POST | `/api/drag/cancel` | Cancel |
-| POST | `/api/drag/accept` | Accept drop |
-| SignalR | `/hubs/board` | `BoardChanged`, `DragEvent` |
+| Method | Path | Purpose | Status |
+| --- | --- | --- | --- |
+| GET | `/api/board` | List items | `200` |
+| POST | `/api/board/move` | `{ itemId, zoneId }` | `200` moved / `400` bad input / `404` unknown item / `409` already in zone |
+| POST | `/api/drag/begin` | Start session | `202` / `400` |
+| POST | `/api/drag/cancel` | Cancel | `202` / `400` / `404` if session gone |
+| POST | `/api/drag/accept` | Accept drop | `202` / `400` / `404` if session gone |
+| SignalR | `/hubs/board` | `BoardChanged`, `DragEvent` | — |
+
+Web-only: `GET /api/instance` (replica label). Not part of the board Api.
+
+Accept and cancel only broadcast when a `drag_sessions` row was actually deleted.
 
 ```mermaid
 flowchart LR
-  Client[Web] -->|POST /api/drag/begin| Api
+  Client[Web replica] -->|POST /api/drag/begin| Api
   Api -->|INSERT drag_sessions| PG[(Postgres)]
   Api -->|Clients.All DragEvent| Hub[SignalR]
   Hub --> Client
@@ -166,27 +176,34 @@ erDiagram
 sequenceDiagram
     actor User
     participant WinA as web-a circuit
+    participant RepA as web-a ApiRealtimeConnection
     participant Api as Api
     participant PG as Postgres
+    participant RepB as web-b ApiRealtimeConnection
     participant WinB as web-b circuit
 
     User->>WinA: dragstart
     WinA->>Api: POST /api/drag/begin
     Api->>PG: INSERT drag_sessions
-    Api-->>WinA: SignalR DragEvent Started
-    Api-->>WinB: SignalR DragEvent Started
-    WinB->>WinB: RemoteDrag / highlight
+    Api-->>RepA: SignalR DragEvent Started
+    Api-->>RepB: SignalR DragEvent Started
+    RepB->>WinB: fan-out → RemoteDrag / highlight
 
     User->>WinB: drop Inbox
-    WinB->>Api: POST /api/board/move
-    Api->>PG: UPDATE board_items
-    Api-->>WinA: SignalR BoardChanged
-    Api-->>WinB: SignalR BoardChanged
     WinB->>Api: POST /api/drag/accept
     Api->>PG: DELETE session
-    Api-->>WinA: SignalR DropAccepted
-    WinA->>WinA: clear LocalDrag
+    Api-->>RepA: SignalR DropAccepted
+    Api-->>RepB: SignalR DropAccepted
+    RepA->>WinA: clear LocalDrag / skip cancel
+    WinB->>Api: POST /api/board/move
+    Api->>PG: UPDATE board_items
+    Api-->>RepA: SignalR BoardChanged
+    Api-->>RepB: SignalR BoardChanged
+
+    Note over WinA: dragend → 500ms grace; Cancel only if DropAccepted did not win
 ```
+
+Drop path sends **accept before move** so `DropAccepted` races ahead of the source’s cancel grace (500 ms for this multi-hop transport). Board state remains authoritative via `/api/board/move`.
 
 ---
 
@@ -199,6 +216,7 @@ builder.AddNpgsqlDataSource("mvpdb");
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<BoardService>();
 builder.Services.AddSingleton<DragSessionService>();
+builder.Services.AddHostedService<DragSessionSweeper>();
 
 var app = builder.Build();
 // ...
@@ -225,7 +243,7 @@ builder.Services.AddSingleton<IDragSessionHub>(sp => sp.GetRequiredService<ApiDr
 builder.Services.AddHostedService(sp => sp.GetRequiredService<ApiDragSessionHub>());
 ```
 
-Hosted order: realtime connection first, then store/hub subscribers.
+Hosted order: realtime connection first, then store/hub subscribers. Hub URL resolves via Aspire `services:api:http:0` (service discovery).
 
 ---
 
@@ -247,6 +265,8 @@ flowchart TB
 | Api scale-out | Needs SignalR backplane (or NOTIFY→hub bridge) between Api replicas |
 | Blazor circuits | Sticky sessions or Azure SignalR Service |
 | Channel scope | Tenant/workspace in production |
+| Auth | Demo Api has **no auth**; hub uses `Clients.All` — add auth + groups before production |
+| Local vs publish | Loopback URL overrides apply only in AppHost run mode |
 | Cost ballpark | [AZURE-COST-ESTIMATE.md](./AZURE-COST-ESTIMATE.md) — SignalR incremental ≈ €0 (hub on API) or ≈ €45–50/mo (Azure SignalR Standard 1 unit) |
 
 ```mermaid
@@ -269,6 +289,7 @@ flowchart LR
 | `AppHost/AppHost.cs` | Postgres + api + web-a/b |
 | `Api/Services/BoardService.cs` | Board + SignalR notify |
 | `Api/Services/DragSessionService.cs` | Sessions + SignalR |
+| `Api/Services/DragSessionSweeper.cs` | Expire sessions → `Cancelled` |
 | `Api/Hubs/BoardRealtimeHub.cs` | Push hub |
 | `Api/Infrastructure/PostgresSchema.cs` | Tables |
 | `Web/Services/Api/BoardApiClient.cs` | HTTP |

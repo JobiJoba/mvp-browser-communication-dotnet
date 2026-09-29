@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using MvpAspirePostgres.Web.Models;
@@ -46,6 +47,13 @@ public sealed class BoardApiClient(HttpClient http)
                 JsonOptions,
                 cancellationToken)
             .ConfigureAwait(false);
+
+        // 404 = already accepted/expired — benign race with DropAccepted.
+        if (response.StatusCode is HttpStatusCode.NotFound)
+        {
+            return;
+        }
+
         response.EnsureSuccessStatusCode();
     }
 
@@ -63,6 +71,13 @@ public sealed class BoardApiClient(HttpClient http)
                 JsonOptions,
                 cancellationToken)
             .ConfigureAwait(false);
+
+        // 404 = already cancelled/expired — still allow MoveItem to commit board state.
+        if (response.StatusCode is HttpStatusCode.NotFound)
+        {
+            return;
+        }
+
         response.EnsureSuccessStatusCode();
     }
 }

@@ -44,9 +44,16 @@ Option 1 — Hub on your existing API (self-hosted)
 Option 2 — Azure SignalR Service (managed)
   Frontend ──SignalR──► Azure SignalR Service ◄── Backend API ──► PostgreSQL
   Extra Azure product: SignalR Service units (+ messages over quota)
+  Requires Microsoft.Azure.SignalR SDK on the API
 ```
 
 This MVP uses **Option 1** locally (hub on the Api). Option 2 is what you add when you want a managed service, SLA, or a backplane across **multiple API replicas**.
+
+### Clients in this architecture
+
+In `MvpAspirePostgres`, SignalR clients are the **web server replicas** (`ApiRealtimeConnection`), not browsers. Connection count ≈ number of frontend containers (tiny). Each `Clients.All` broadcast is counted once **per connected replica**, so **message quota** matters more than the “1 000 connections/unit” marketing number.
+
+Blazor’s own circuit SignalR (browser ↔ frontend) is a separate concern and is not priced here.
 
 ---
 
@@ -57,7 +64,7 @@ This MVP uses **Option 1** locally (hub on the Api). Option 2 is what you add wh
 | **No SignalR** (REST only) | **€0** | Baseline |
 | **Option 1 — SignalR hub on the existing API** | **≈ €0** | One API instance (or sticky routing); light push traffic fits current CPU/RAM |
 | **Option 1 + noticeable load** (may need more API vCPU/memory) | **≈ €0–25** | Chatty drag/board fan-out; only if you actually scale the API container up |
-| **Option 2 — Azure SignalR Free** | **€0** | Dev / tiny demo: **20** concurrent connections, **20 000** messages/day |
+| **Option 2 — Azure SignalR Free** | **€0** | Dev / tiny demo: **20** concurrent connections, **20 000** messages/day; **no SLA** |
 | **Option 2 — Azure SignalR Standard, 1 unit** | **≈ €45–50** | Production realtime: **1 000** connections/unit, **1 000 000** messages/unit/day included |
 | **Option 2 — Standard, 2 units** | **≈ €90–100** | More concurrent connections / message headroom |
 | **Messages beyond included quota** | **≈ €0.90–1.00 per million** | Only after the daily included messages per unit |
@@ -77,7 +84,7 @@ That **≈ €45–50** is the only **dedicated** line item for “realtime as a
 
 | Meter | Approx |
 | --- | --- |
-| Azure SignalR **Free** | **€0** |
+| Azure SignalR **Free** | **€0** (no SLA) |
 | Azure SignalR **Standard** | ~**€1.45–1.55 / unit-day** → **≈ €45–50 / unit-month** (~30.5 days) |
 | Azure SignalR **Premium** | ~**€1.80–2.00 / unit-day** → **≈ €55–60 / unit-month** (same quotas as Standard per unit; adds AZ / autoscale / geo features) |
 | Extra messages (Standard/Premium) | ~**€0.90–1.00 / million** after the included 1M/unit/day |
@@ -102,14 +109,16 @@ PostgreSQL            (paid)             PostgreSQL            (paid — same)
                                          ───────────────────────────────────────────
                                          Frontend / API / Postgres   (paid — same)
                                          + Azure SignalR Service     ≈ €45–50 / mo
+                                         (+ Microsoft.Azure.SignalR on the API)
 ```
 
 | | Without SignalR | + Hub on existing API | + Azure SignalR Standard 1 unit |
 | --- | --- | --- | --- |
 | New Azure resource | — | None | SignalR Service |
 | Extra € / month | **0** | **≈ 0** (or small API bump) | **≈ 45–50** |
-| SLA on push fabric | N/A | Your API uptime | 99.9% (Standard) |
+| SLA on push fabric | N/A | Your API uptime | 99.9% (Standard); Free has none |
 | Multi-API-replica fan-out | N/A | Needs a backplane | Built-in role of the service |
+| Binding clients (this MVP) | N/A | 1 connection per web replica | Same; message volume scales with replicas × events |
 
 ---
 
@@ -117,14 +126,14 @@ PostgreSQL            (paid)             PostgreSQL            (paid — same)
 
 - Frontend Container Apps size / replica count — already excluded.  
 - Postgres SKU — board tables are negligible vs instance price; no separate “SignalR DB” charge.  
-- Blazor circuit SignalR (browser ↔ frontend) — different concern; this doc is about **API → clients realtime push** for board/drag (or equivalent) updates.
+- Blazor circuit SignalR (browser ↔ frontend) — different concern; this doc is about **API → web replicas realtime push** for board/drag (or equivalent) updates.
 
 ---
 
 ## Practical recommendation for this MVP shape
 
 1. **Prototype / single API replica:** host SignalR on the existing backend (**≈ €0** extra). Matches `MvpAspirePostgres` locally.  
-2. **Production with multiple API replicas or managed SLA:** add **Azure SignalR Service Standard, 1 unit** → budget **≈ €45–50 / month** as the pure incremental cost of realtime vs REST-only.  
-3. Re-price in the calculator before procurement; scale units only when connections or messages approach the per-unit caps.
+2. **Production with multiple API replicas or managed SLA:** add **Azure SignalR Service Standard, 1 unit** → budget **≈ €45–50 / month** as the pure incremental cost of realtime vs REST-only; wire the API with `Microsoft.Azure.SignalR`.  
+3. Re-price in the calculator before procurement; scale units mainly when **messages** (not connections) approach the per-unit caps for this server-to-server pattern.
 
 **Bottom line:** vs the same Frontend + API + Postgres project **without** SignalR, expect **≈ €0/month** if the hub lives on the API you already run, or **≈ €45–50/month** if you buy one Azure SignalR Standard unit for managed realtime.

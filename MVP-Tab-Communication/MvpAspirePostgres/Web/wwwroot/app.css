@@ -178,7 +178,7 @@ a, .btn-link {
     font-weight: 600;
 }
 
-.redis-debug {
+.board-debug {
     margin-top: 1.5rem;
     padding: 0.75rem 1rem;
     background: #1e1e1e;
@@ -187,14 +187,14 @@ a, .btn-link {
     font-size: 0.85rem;
 }
 
-.redis-debug summary {
+.board-debug summary {
     cursor: pointer;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     color: #9cdcfe;
     margin-bottom: 0.5rem;
 }
 
-.redis-debug pre {
+.board-debug pre {
     margin: 0.5rem 0 0;
     white-space: pre-wrap;
     word-break: break-word;

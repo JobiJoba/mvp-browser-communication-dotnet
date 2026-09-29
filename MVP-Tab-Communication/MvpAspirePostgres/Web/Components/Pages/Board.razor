@@ -74,8 +74,8 @@
         </DropZone>
     </div>
 
-    <details class="redis-debug" open>
-        <summary>Debug — board snapshot from <code>GET /api/board</code></summary>
+    <details class="board-debug" open>
+        <summary>Debug — board snapshot (local cache from API)</summary>
         <pre>@_rawBoardJson</pre>
     </details>
 </section>
@@ -124,15 +124,16 @@
     {
         if (Coordinator.RemoteDrag is { } remote)
         {
-            BoardStore.MoveItem(remote.Payload.ItemId, zoneId);
+            // Accept first so DropAccepted races ahead of the source's cancel grace.
             await Coordinator.AcceptRemoteDropAsync(zoneId);
+            await BoardStore.MoveItemAsync(remote.Payload.ItemId, zoneId);
             return;
         }
 
         if (Coordinator.LocalDrag is { } local)
         {
-            BoardStore.MoveItem(local.Payload.ItemId, zoneId);
             await Coordinator.AcceptLocalDropAsync(zoneId);
+            await BoardStore.MoveItemAsync(local.Payload.ItemId, zoneId);
         }
     }
 

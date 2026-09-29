@@ -15,7 +15,7 @@ public sealed class ApiBoardStore : IBoardStore, IHostedService
     private readonly BoardApiClient _api;
     private readonly ApiRealtimeConnection _realtime;
     private readonly ILogger<ApiBoardStore> _logger;
-    private IDisposable? _subscription;
+    private readonly List<IDisposable> _subscriptions = [];
     private IReadOnlyList<BoardItem> _cache = [];
 
     public ApiBoardStore(BoardApiClient api, ApiRealtimeConnection realtime, ILogger<ApiBoardStore> logger)
@@ -41,33 +41,36 @@ public sealed class ApiBoardStore : IBoardStore, IHostedService
         }
     }
 
-    public bool MoveItem(string itemId, string zoneId)
+    public async Task<bool> MoveItemAsync(string itemId, string zoneId)
     {
-        var moved = _api.MoveItemAsync(itemId, zoneId).GetAwaiter().GetResult();
-        if (moved)
-        {
-            // Optimistic local refresh; SignalR BoardChanged will refresh peers (and us).
-            RefreshCacheAsync().GetAwaiter().GetResult();
-        }
-
-        return moved;
+        // Rely on SignalR BoardChanged (including this replica) to refresh the cache.
+        return await _api.MoveItemAsync(itemId, zoneId).ConfigureAwait(false);
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await RefreshCacheAsync(cancellationToken).ConfigureAwait(false);
-        _subscription = _realtime.SubscribeBoardChanged(async () =>
+        _subscriptions.Add(_realtime.SubscribeBoardChanged(async () =>
         {
             await RefreshCacheAsync().ConfigureAwait(false);
             await NotifyChangedAsync().ConfigureAwait(false);
-        });
-        _logger.LogInformation("ApiBoardStore subscribed to backend BoardChanged.");
+        }));
+        _subscriptions.Add(_realtime.SubscribeResynced(async () =>
+        {
+            await RefreshCacheAsync().ConfigureAwait(false);
+            await NotifyChangedAsync().ConfigureAwait(false);
+        }));
+        _logger.LogInformation("ApiBoardStore subscribed to backend BoardChanged and resync.");
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        _subscription?.Dispose();
-        _subscription = null;
+        foreach (var subscription in _subscriptions)
+        {
+            subscription.Dispose();
+        }
+
+        _subscriptions.Clear();
         return Task.CompletedTask;
     }
 

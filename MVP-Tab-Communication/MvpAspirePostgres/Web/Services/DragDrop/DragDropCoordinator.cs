@@ -7,6 +7,12 @@ public sealed record ActiveDrag(string SessionId, string SourceCircuitId, DragPa
 
 public sealed class DragDropCoordinator : IAsyncDisposable
 {
+    /// <summary>
+    /// Grace after dragend so DropAccepted (HTTP + SignalR hop) can beat Cancel.
+    /// Wider than in-process MVPs because this transport is multi-hop.
+    /// </summary>
+    private static readonly TimeSpan CancelGrace = TimeSpan.FromMilliseconds(500);
+
     private readonly IDragSessionHub _hub;
     private IDisposable? _subscription;
     private string? _originSessionId;
@@ -58,7 +64,7 @@ public sealed class DragDropCoordinator : IAsyncDisposable
         var sessionId = _originSessionId;
         LocalDrag = null;
 
-        await Task.Delay(150);
+        await Task.Delay(CancelGrace);
 
         if (_originCompleted || _originSessionId != sessionId)
         {

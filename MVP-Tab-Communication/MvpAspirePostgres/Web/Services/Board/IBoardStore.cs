@@ -6,10 +6,10 @@ public interface IBoardStore
 {
     IReadOnlyList<BoardItem> GetSnapshot();
 
-    /// <summary>JSON snapshot of board items from the API (debug UI).</summary>
+    /// <summary>JSON of the in-memory cache last fetched from the API (debug UI).</summary>
     string GetRawJson();
 
-    bool MoveItem(string itemId, string zoneId);
+    Task<bool> MoveItemAsync(string itemId, string zoneId);
 
     event Func<Task>? Changed;
 }

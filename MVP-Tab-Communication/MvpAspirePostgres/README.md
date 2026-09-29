@@ -38,14 +38,16 @@ dotnet run --project AppHost
 
 ## API surface
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/api/board` | List board items |
-| `POST` | `/api/board/move` | `{ itemId, zoneId }` |
-| `POST` | `/api/drag/begin` | Start drag session |
-| `POST` | `/api/drag/cancel` | Cancel drag |
-| `POST` | `/api/drag/accept` | Accept drop |
-| SignalR | `/hubs/board` | Server → client: `BoardChanged`, `DragEvent` |
+| Method | Path | Purpose | Status |
+| --- | --- | --- | --- |
+| `GET` | `/api/board` | List board items | `200` |
+| `POST` | `/api/board/move` | `{ itemId, zoneId }` | `200` / `400` / `404` / `409` |
+| `POST` | `/api/drag/begin` | Start drag session | `202` / `400` |
+| `POST` | `/api/drag/cancel` | Cancel drag | `202` / `400` / `404` |
+| `POST` | `/api/drag/accept` | Accept drop | `202` / `400` / `404` |
+| SignalR | `/hubs/board` | Server → client: `BoardChanged`, `DragEvent` | — |
+
+Web-only (not on Api): `GET /api/instance` returns the replica label for the debug header.
 
 ## Project layout
 
@@ -53,6 +55,7 @@ dotnet run --project AppHost
 | --- | --- |
 | `Api/Services/BoardService.cs` | Postgres board rows + SignalR `BoardChanged` |
 | `Api/Services/DragSessionService.cs` | Drag session rows + SignalR `DragEvent` |
+| `Api/Services/DragSessionSweeper.cs` | TTL cleanup; broadcasts `Cancelled` for expired sessions |
 | `Api/Hubs/BoardRealtimeHub.cs` | Push hub (clients receive only) |
 | `Web/Services/Api/BoardApiClient.cs` | Typed HTTP client (`https+http://api`) |
 | `Web/Services/Api/ApiRealtimeConnection.cs` | SignalR client per web replica |
