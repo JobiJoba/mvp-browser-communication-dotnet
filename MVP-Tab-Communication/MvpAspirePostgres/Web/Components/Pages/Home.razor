@@ -1,0 +1,28 @@
+﻿@page "/"
+@using MvpAspirePostgres.Web.Services.Instance
+@inject IAppInstanceInfo Instance
+
+<PageTitle>Aspire + Postgres API MVP</PageTitle>
+
+<h1>Cross-window board — frontend + Postgres backend</h1>
+
+<p>
+    Blazor frontends (<code>web-a</code> / <code>web-b</code>) call a separate
+    <strong>Api</strong> service that owns PostgreSQL. Drag and board updates are
+    pushed to all frontends over <strong>SignalR</strong> — the pattern for a
+    board team that ships a backend, not a shared database connection from the UI.
+</p>
+
+<ol>
+    <li>Start the AppHost: <code>dotnet run --project AppHost</code> (Docker for Postgres).</li>
+    <li>Window 1: <a href="http://127.0.0.1:5290/board" target="_blank">http://127.0.0.1:5290/board</a> (Replica A)</li>
+    <li>Window 2: <a href="http://127.0.0.1:5291/board" target="_blank">http://127.0.0.1:5291/board</a> (Replica B)</li>
+    <li>Optional Api: <a href="http://127.0.0.1:5295/api/board" target="_blank">http://127.0.0.1:5295/api/board</a></li>
+    <li>Drag a box across windows — replica labels should show <strong>A</strong> vs <strong>B</strong>.</li>
+</ol>
+
+<p>
+    This node: replica <strong>@(Instance.ReplicaIndex ?? "?")</strong>, id <code>@Instance.ShortId</code>.
+</p>
+
+<p><a class="btn btn-primary" href="board">Open board</a></p>

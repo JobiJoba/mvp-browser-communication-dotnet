@@ -1,0 +1,145 @@
+@page "/board"
+@rendermode InteractiveServer
+@using MvpAspireRedis.Web.Components.DragDrop
+@using MvpAspireRedis.Web.Models
+@using MvpAspireRedis.Web.Services.Board
+@using MvpAspireRedis.Web.Services.DragDrop
+@using MvpAspireRedis.Web.Services.Instance
+@implements IAsyncDisposable
+@inject DragDropCoordinator Coordinator
+@inject IBoardStore BoardStore
+@inject IAppInstanceInfo Instance
+
+<PageTitle>Board — Aspire + Redis</PageTitle>
+
+<section class="board">
+    <header class="board-header">
+        <div>
+            <h1>Cross-window board (Redis)</h1>
+            <p>
+                Open this page in a <strong>second browser window</strong> side by side.
+                Use two dashboard endpoints (<strong>web-a</strong> and <strong>web-b</strong>)—one
+                per window—so each Blazor circuit hits a different instance. Board items and drag
+                sessions go through <strong>Redis</strong>, so the two nodes stay in sync.
+            </p>
+        </div>
+        <div class="board-meta">
+            <span class="circuit-id" title="Blazor circuit">Circuit @ShortCircuitId</span>
+            <span class="circuit-id" title="App replica">Replica @(Instance.ReplicaIndex ?? "?") · node @Instance.ShortId</span>
+            @if (Coordinator.HasRemoteDrag)
+            {
+                <span class="status-pill">Remote drag active</span>
+            }
+        </div>
+    </header>
+
+    <div class="board-grid">
+        <DropZone ZoneId="tray"
+                  Title="Tray"
+                  IsActive="Coordinator.HasRemoteDrag"
+                  IsEmpty="@(ItemsIn("tray").Count() == 0)"
+                  ItemDropped="OnDroppedAsync">
+            @foreach (var item in ItemsIn("tray"))
+            {
+                <Draggable Item="item"
+                           DragStarted="OnDragStartedAsync"
+                           DragEnded="OnDragEndedAsync" />
+            }
+        </DropZone>
+
+        <DropZone ZoneId="inbox"
+                  Title="Inbox"
+                  IsActive="Coordinator.HasRemoteDrag"
+                  IsEmpty="@(ItemsIn("inbox").Count() == 0)"
+                  ItemDropped="OnDroppedAsync">
+            @foreach (var item in ItemsIn("inbox"))
+            {
+                <Draggable Item="item"
+                           DragStarted="OnDragStartedAsync"
+                           DragEnded="OnDragEndedAsync" />
+            }
+        </DropZone>
+
+        <DropZone ZoneId="archive"
+                  Title="Archive"
+                  IsActive="Coordinator.HasRemoteDrag"
+                  IsEmpty="@(ItemsIn("archive").Count() == 0)"
+                  ItemDropped="OnDroppedAsync">
+            @foreach (var item in ItemsIn("archive"))
+            {
+                <Draggable Item="item"
+                           DragStarted="OnDragStartedAsync"
+                           DragEnded="OnDragEndedAsync" />
+            }
+        </DropZone>
+    </div>
+
+    <details class="redis-debug" open>
+        <summary>Debug — Redis board store (<code>mvp:board:items</code>)</summary>
+        <pre>@_rawRedisJson</pre>
+    </details>
+</section>
+
+@code {
+    private List<BoardItem> _items = [];
+    private string _rawRedisJson = "";
+
+    private string ShortCircuitId => Coordinator.CircuitId[..8];
+
+    protected override void OnInitialized()
+    {
+        RefreshFromStore();
+        BoardStore.Changed += OnBoardChangedAsync;
+
+        Coordinator.Dispatcher = InvokeAsync;
+        Coordinator.Changed += OnCoordinatorChangedAsync;
+        Coordinator.Start();
+    }
+
+    private IEnumerable<BoardItem> ItemsIn(string zoneId) =>
+        _items.Where(i => i.ZoneId == zoneId);
+
+    private void RefreshFromStore()
+    {
+        _items = BoardStore.GetSnapshot().ToList();
+        _rawRedisJson = BoardStore.GetRawJson();
+    }
+
+    private Task OnCoordinatorChangedAsync() => InvokeAsync(StateHasChanged);
+
+    private Task OnBoardChangedAsync() => InvokeAsync(() =>
+    {
+        RefreshFromStore();
+        StateHasChanged();
+        return Task.CompletedTask;
+    });
+
+    private Task OnDragStartedAsync(BoardItem item) =>
+        Coordinator.BeginLocalDragAsync(item);
+
+    private Task OnDragEndedAsync() =>
+        Coordinator.EndLocalDragAsync();
+
+    private async Task OnDroppedAsync(string zoneId)
+    {
+        if (Coordinator.RemoteDrag is { } remote)
+        {
+            BoardStore.MoveItem(remote.Payload.ItemId, zoneId);
+            await Coordinator.AcceptRemoteDropAsync(zoneId);
+            return;
+        }
+
+        if (Coordinator.LocalDrag is { } local)
+        {
+            BoardStore.MoveItem(local.Payload.ItemId, zoneId);
+            await Coordinator.AcceptLocalDropAsync(zoneId);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        BoardStore.Changed -= OnBoardChangedAsync;
+        Coordinator.Changed -= OnCoordinatorChangedAsync;
+        await Coordinator.DisposeAsync();
+    }
+}

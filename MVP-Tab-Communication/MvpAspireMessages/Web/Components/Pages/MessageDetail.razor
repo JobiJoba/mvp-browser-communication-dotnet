@@ -1,0 +1,143 @@
+@page "/messages/{Id:guid}"
+@rendermode InteractiveServer
+@using MvpAspireMessages.Web.Models
+@using MvpAspireMessages.Web.Services
+@inject MessagesApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>@( _message?.Subject ?? "Message" )</PageTitle>
+
+<div class="detail-toolbar">
+    <button type="button" class="btn btn-secondary" @onclick="GoBack">
+        ← Back to overview
+    </button>
+</div>
+
+@if (_error is not null)
+{
+    <p class="messages-error">@_error</p>
+}
+else if (_message is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <article class="message-detail">
+        <header class="message-detail-header">
+            <h1>@_message.Subject</h1>
+            <span class="state-badge state-@_message.State.ToString().ToLowerInvariant()">
+                @FormatState(_message.State)
+            </span>
+        </header>
+
+        <p class="message-meta">
+            Created @_message.CreatedAt.ToLocalTime().ToString("g")
+            @if (_message.UpdatedAt is { } updated)
+            {
+                <text> · Updated @updated.ToLocalTime().ToString("g")</text>
+            }
+        </p>
+
+        <div class="message-body">
+            @_message.Body
+        </div>
+
+        <section class="state-actions">
+            <h2>Change state</h2>
+            <div class="state-buttons">
+                @foreach (var state in AllStates)
+                {
+                    <button type="button"
+                            class="btn @(state == _message.State ? "btn-primary" : "btn-secondary")"
+                            disabled="@(_saving || state == _message.State)"
+                            @onclick="() => SetStateAsync(state)">
+                        @FormatState(state)
+                    </button>
+                }
+            </div>
+            @if (_saveMessage is not null)
+            {
+                <p class="save-feedback">@_saveMessage</p>
+            }
+        </section>
+    </article>
+}
+
+@code {
+    private static readonly MessageState[] AllStates =
+    [
+        MessageState.Waiting,
+        MessageState.Processed,
+        MessageState.Deleted
+    ];
+
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private MessageDto? _message;
+    private string? _error;
+    private string? _saveMessage;
+    private bool _saving;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _error = null;
+        _saveMessage = null;
+        try
+        {
+            _message = await Api.GetMessageAsync(Id);
+            if (_message is null)
+            {
+                _error = "Message not found.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not load message: {ex.Message}";
+            _message = null;
+        }
+    }
+
+    private async Task SetStateAsync(MessageState state)
+    {
+        if (_message is null || _saving)
+        {
+            return;
+        }
+
+        _saving = true;
+        _saveMessage = null;
+        try
+        {
+            var updated = await Api.UpdateStateAsync(Id, state);
+            if (updated is null)
+            {
+                _saveMessage = "Message no longer exists.";
+            }
+            else
+            {
+                _message = updated;
+                _saveMessage = $"State set to {FormatState(state)}.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _saveMessage = $"Update failed: {ex.Message}";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("messages");
+
+    private static string FormatState(MessageState state) => state switch
+    {
+        MessageState.Waiting => "In waiting",
+        MessageState.Processed => "Processed",
+        MessageState.Deleted => "Deleted",
+        _ => state.ToString()
+    };
+}

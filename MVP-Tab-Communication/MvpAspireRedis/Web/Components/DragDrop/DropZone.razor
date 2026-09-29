@@ -1,0 +1,59 @@
+@namespace MvpAspireRedis.Web.Components.DragDrop
+
+<div class="dnd-zone @(IsActive ? "is-active" : null) @(IsDragOver ? "is-over" : null)"
+     @ondragover:preventDefault
+     @ondragenter="OnDragEnter"
+     @ondragleave="OnDragLeave"
+     @ondrop:preventDefault
+     @ondrop="OnDropAsync">
+    <div class="dnd-zone-header">
+        <h3>@Title</h3>
+        @if (IsActive)
+        {
+            <span class="dnd-zone-badge">Drop here</span>
+        }
+    </div>
+    <div class="dnd-zone-body">
+        @ChildContent
+        @if (IsEmpty)
+        {
+            <p class="dnd-zone-empty">Empty</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string ZoneId { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = default!;
+
+    [Parameter]
+    public bool IsActive { get; set; }
+
+    [Parameter]
+    public bool IsEmpty { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public EventCallback<string> ItemDropped { get; set; }
+
+    private int _enterCount;
+    private bool IsDragOver => _enterCount > 0;
+
+    private void OnDragEnter(DragEventArgs _) => _enterCount++;
+
+    private void OnDragLeave(DragEventArgs _)
+    {
+        _enterCount = Math.Max(0, _enterCount - 1);
+    }
+
+    private async Task OnDropAsync(DragEventArgs _)
+    {
+        _enterCount = 0;
+        await ItemDropped.InvokeAsync(ZoneId);
+    }
+}

@@ -1,0 +1,26 @@
+﻿@page "/"
+@using MvpAspireRedis.Web.Services.Instance
+@inject IAppInstanceInfo Instance
+
+<PageTitle>Aspire + Redis MVP</PageTitle>
+
+<h1>Cross-window board — Aspire + Redis</h1>
+
+<p>
+    Same server-sync drag protocol as <code>MvpServerSync</code>, but state and drag events
+    are stored in <strong>Redis</strong> so multiple app containers (replicas) stay consistent.
+</p>
+
+<ol>
+    <li>Start the AppHost: <code>dotnet run --project AppHost</code> (requires Docker for Redis).</li>
+    <li>Window 1: <a href="http://127.0.0.1:5280/board" target="_blank">http://127.0.0.1:5280/board</a> (Replica A)</li>
+    <li>Window 2: <a href="http://127.0.0.1:5281/board" target="_blank">http://127.0.0.1:5281/board</a> (Replica B)</li>
+    <li>Drag a box across windows — replica should show <strong>A</strong> vs <strong>B</strong>.</li>
+</ol>
+
+<p>
+    This node: replica <strong>@(Instance.ReplicaIndex ?? "?")</strong>, id <code>@Instance.ShortId</code>.
+    Optional: <code>/api/instance</code> returns JSON for the replica handling that request.
+</p>
+
+<p><a class="btn btn-primary" href="board">Open board</a></p>

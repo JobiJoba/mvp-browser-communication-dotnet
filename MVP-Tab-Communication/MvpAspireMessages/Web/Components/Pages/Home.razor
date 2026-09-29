@@ -1,0 +1,23 @@
+﻿@page "/"
+
+<PageTitle>Aspire Messages MVP</PageTitle>
+
+<h1>Messages overview / detail</h1>
+
+<p>
+    Baseline Aspire app with a <strong>backend Api</strong> and a <strong>Blazor Server</strong>
+    frontend. The first scenario is a messages inbox: list → detail → change state → back to overview.
+</p>
+
+<p>
+    Later scenarios (navigation strategies, stale list state, browser back, multi-tab, etc.)
+    can share this same shell.
+</p>
+
+<ol>
+    <li>Start: <code>dotnet run --project AppHost</code></li>
+    <li>Open <a href="http://127.0.0.1:5300/messages">http://127.0.0.1:5300/messages</a></li>
+    <li>Click a message, change its state, then use <strong>Back to overview</strong>.</li>
+</ol>
+
+<p><a class="btn btn-primary" href="messages">Open messages</a></p>

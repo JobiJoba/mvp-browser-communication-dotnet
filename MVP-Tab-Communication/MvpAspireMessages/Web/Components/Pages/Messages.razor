@@ -1,0 +1,72 @@
+@page "/messages"
+@rendermode InteractiveServer
+@using MvpAspireMessages.Web.Models
+@using MvpAspireMessages.Web.Services
+@inject MessagesApiClient Api
+
+<PageTitle>Messages</PageTitle>
+
+<div class="messages-header">
+    <div>
+        <h1>Messages</h1>
+        <p>Click a row to open the detail and change its state.</p>
+    </div>
+</div>
+
+@if (_error is not null)
+{
+    <p class="messages-error">@_error</p>
+}
+else if (_messages is null)
+{
+    <p>Loading…</p>
+}
+else if (_messages.Count == 0)
+{
+    <p>No messages.</p>
+}
+else
+{
+    <div class="message-list" role="list">
+        @foreach (var message in _messages)
+        {
+            <a class="message-row" href="messages/@message.Id" role="listitem">
+                <div class="message-row-main">
+                    <span class="message-subject">@message.Subject</span>
+                    <span class="message-preview">@Truncate(message.Body, 80)</span>
+                </div>
+                <span class="state-badge state-@message.State.ToString().ToLowerInvariant()">
+                    @FormatState(message.State)
+                </span>
+            </a>
+        }
+    </div>
+}
+
+@code {
+    private IReadOnlyList<MessageDto>? _messages;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _messages = await Api.GetMessagesAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not load messages: {ex.Message}";
+        }
+    }
+
+    private static string FormatState(MessageState state) => state switch
+    {
+        MessageState.Waiting => "In waiting",
+        MessageState.Processed => "Processed",
+        MessageState.Deleted => "Deleted",
+        _ => state.ToString()
+    };
+
+    private static string Truncate(string value, int max) =>
+        value.Length <= max ? value : value[..(max - 1)] + "…";
+}
