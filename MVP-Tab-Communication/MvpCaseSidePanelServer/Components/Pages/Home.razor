@@ -1,0 +1,61 @@
+﻿@page "/"
+@using MvpCaseSidePanelServer.Components.SidePanel
+@using MvpCaseSidePanelServer.Models
+@using MvpCaseSidePanelServer.Services.Cases
+@using MvpCaseSidePanelServer.Services.SidePanel
+@implements IDisposable
+@inject ICaseCatalog Catalog
+@inject SidePanelState Panel
+
+<PageTitle>Case Side Panel — Server</PageTitle>
+
+<div class="case-workspace">
+    <div class="case-main">
+        <p class="eyebrow">Managed case workspace</p>
+        <h1>Same page, per-window side panel</h1>
+        <p>
+            Open this page in two windows. In the left menu, click
+            <strong>Generate cases for Tab A</strong> in one window and
+            <strong>Generate cases for Tab B</strong> in the other, then drag links across panels.
+            Transport: in-process server hub (no JSInterop).
+        </p>
+
+        @if (Panel.GeneratedAs is not null)
+        {
+            <p class="panel-seed-label">This window’s panel was generated as <strong>@Panel.GeneratedAs</strong></p>
+        }
+
+        @if (SelectedCase is null)
+        {
+            <div class="case-placeholder">
+                <p>Side panel is empty until you generate Tab A or Tab B from the left menu.</p>
+                <p>After generating, click a link in the panel to open its detail here.</p>
+            </div>
+        }
+        else
+        {
+            <div class="case-detail-card">
+                <p class="eyebrow">Selected case</p>
+                <h2>@SelectedCase.DisplayName</h2>
+                <p class="case-status">Status: <strong>@SelectedCase.Status</strong></p>
+                <p class="case-summary">@SelectedCase.Summary</p>
+            </div>
+        }
+    </div>
+
+    <CaseSidePanel />
+</div>
+
+@code {
+    private ManagedCase? SelectedCase =>
+        Panel.SelectedCaseId is null ? null : Catalog.GetById(Panel.SelectedCaseId);
+
+    protected override void OnInitialized()
+    {
+        Panel.Changed += OnPanelChanged;
+    }
+
+    private void OnPanelChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Panel.Changed -= OnPanelChanged;
+}

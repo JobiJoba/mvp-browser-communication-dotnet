@@ -1,0 +1,113 @@
+@namespace MvpCaseSidePanelServer.Components.SidePanel
+@using MvpCaseSidePanelServer.Models
+@using MvpCaseSidePanelServer.Services.DragDrop
+@using MvpCaseSidePanelServer.Services.SidePanel
+@implements IAsyncDisposable
+@inject SidePanelState Panel
+@inject DragDropCoordinator Coordinator
+
+<aside class="case-side-panel @(Coordinator.HasRemoteDrag ? "is-active" : null) @(IsDragOver ? "is-over" : null)"
+       @ondragover:preventDefault
+       @ondragenter="OnDragEnter"
+       @ondragleave="OnDragLeave"
+       @ondrop:preventDefault
+       @ondrop="OnDropAsync">
+    <header class="case-side-panel-header">
+        <h2>Managed cases</h2>
+        <span class="circuit-chip" title="This Blazor circuit">@ShortCircuitId</span>
+    </header>
+
+    @if (Coordinator.HasRemoteDrag)
+    {
+        <p class="drop-hint">Drop here to move the case link into this panel</p>
+    }
+
+    <div class="case-side-panel-list">
+        @foreach (var link in Panel.Links)
+        {
+            <CaseLinkItem Link="link"
+                          DragStarted="OnDragStartedAsync"
+                          DragEnded="OnDragEndedAsync"
+                          OpenCase="OnOpenCase" />
+        }
+
+        @if (Panel.Links.Count == 0)
+        {
+            <p class="panel-empty">No case links in this panel</p>
+        }
+    </div>
+</aside>
+
+@code {
+    private int _enterCount;
+    private bool _started;
+    private bool IsDragOver => _enterCount > 0;
+
+    private string ShortCircuitId => Coordinator.CircuitId[..8];
+
+    protected override void OnInitialized()
+    {
+        if (_started)
+        {
+            return;
+        }
+
+        Coordinator.Dispatcher = InvokeAsync;
+        Coordinator.Changed += OnChangedAsync;
+        Coordinator.LinkRemovedRemotely += OnLinkRemovedAsync;
+        Panel.Changed += OnPanelChanged;
+        Coordinator.Start();
+        _started = true;
+    }
+
+    private void OnPanelChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private Task OnChangedAsync() => InvokeAsync(StateHasChanged);
+
+    private Task OnLinkRemovedAsync(string caseId)
+    {
+        Panel.Remove(caseId);
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnDragStartedAsync(CaseLink link) =>
+        Coordinator.BeginLocalDragAsync(link);
+
+    private Task OnDragEndedAsync() =>
+        Coordinator.EndLocalDragAsync();
+
+    private void OnOpenCase(string caseId) =>
+        Panel.SelectCase(caseId);
+
+    private void OnDragEnter(DragEventArgs _) => _enterCount++;
+
+    private void OnDragLeave(DragEventArgs _) =>
+        _enterCount = Math.Max(0, _enterCount - 1);
+
+    private async Task OnDropAsync(DragEventArgs _)
+    {
+        _enterCount = 0;
+
+        if (Coordinator.RemoteDrag is { } remote)
+        {
+            Panel.Add(new CaseLink(remote.Payload.CaseId, remote.Payload.DisplayName));
+            await Coordinator.AcceptRemoteDropAsync();
+            return;
+        }
+
+        if (Coordinator.LocalDrag is { } local)
+        {
+            // Same-panel drop: keep link where it is; just complete the session.
+            await Coordinator.AcceptLocalDropAsync();
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Panel.Changed -= OnPanelChanged;
+        Coordinator.Changed -= OnChangedAsync;
+        Coordinator.LinkRemovedRemotely -= OnLinkRemovedAsync;
+        // Coordinator is scoped to the circuit; DI disposes it when the circuit ends.
+        return ValueTask.CompletedTask;
+    }
+}

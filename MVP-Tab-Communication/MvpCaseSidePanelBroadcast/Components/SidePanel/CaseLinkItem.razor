@@ -1,0 +1,33 @@
+@namespace MvpCaseSidePanelBroadcast.Components.SidePanel
+@using MvpCaseSidePanelBroadcast.Models
+
+<div class="case-link-item"
+     draggable="true"
+     title="Drag to another window's side panel to move"
+     @ondragstart="OnDragStartAsync"
+     @ondragend="OnDragEndAsync">
+    <button type="button" class="case-link-open" @onclick="OnOpenAsync" @onclick:stopPropagation="true">
+        <span class="case-link-name">@Link.DisplayName</span>
+        <span class="case-link-id">@Link.CaseId</span>
+    </button>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public CaseLink Link { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback<CaseLink> DragStarted { get; set; }
+
+    [Parameter]
+    public EventCallback DragEnded { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OpenCase { get; set; }
+
+    private Task OnDragStartAsync(DragEventArgs _) => DragStarted.InvokeAsync(Link);
+
+    private Task OnDragEndAsync(DragEventArgs _) => DragEnded.InvokeAsync();
+
+    private Task OnOpenAsync() => OpenCase.InvokeAsync(Link.CaseId);
+}

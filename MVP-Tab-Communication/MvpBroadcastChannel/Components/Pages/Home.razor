@@ -1,0 +1,23 @@
+﻿@page "/"
+
+<PageTitle>BroadcastChannel MVP</PageTitle>
+
+<h1>Cross-tab DnD — BroadcastChannel</h1>
+
+<p>
+    This MVP syncs drag-and-drop across same-origin browser windows with the
+    <code>BroadcastChannel</code> API through a small JSInterop module. The Blazor
+    Server process is not on the message path.
+</p>
+
+<ol>
+    <li>Open <a href="board" target="_blank">/board</a> in this window.</li>
+    <li>Open the same URL in a <strong>second browser window</strong> and place them side by side.</li>
+    <li>Drag a colored box from one window onto Inbox or Archive in the other.</li>
+</ol>
+
+<p>
+    Tip: use two windows, not two tabs in the same window — switching tabs usually cancels an HTML5 drag.
+</p>
+
+<p><a class="btn btn-primary" href="board">Open board</a></p>

@@ -1,0 +1,28 @@
+# Build outputs (per project: bin/, obj/)
+**/bin/
+**/obj/
+
+# .NET / Visual Studio
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+.vs/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SpecStory session noise
+.specstory/
+
+# Local / IDE
+*.swp
+*~
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json

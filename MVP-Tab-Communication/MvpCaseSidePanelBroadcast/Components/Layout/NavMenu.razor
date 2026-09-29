@@ -1,0 +1,50 @@
+﻿@using MvpCaseSidePanelBroadcast.Services.SidePanel
+@implements IDisposable
+@inject SidePanelState Panel
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Case Side Panel (Broadcast)</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="nav flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Workspace
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3 nav-section-label">Demo setup</div>
+
+        <div class="nav-item px-3">
+            <button type="button"
+                    class="nav-link nav-action @(Panel.GeneratedAs == "Tab A" ? "active" : null)"
+                    @onclick="GenerateTabA">
+                Generate cases for Tab A
+            </button>
+        </div>
+        <div class="nav-item px-3">
+            <button type="button"
+                    class="nav-link nav-action @(Panel.GeneratedAs == "Tab B" ? "active" : null)"
+                    @onclick="GenerateTabB">
+                Generate cases for Tab B
+            </button>
+        </div>
+    </nav>
+</div>
+
+@code {
+    protected override void OnInitialized() => Panel.Changed += OnPanelChanged;
+
+    private void OnPanelChanged() => InvokeAsync(StateHasChanged);
+
+    private void GenerateTabA() => Panel.GenerateForTab("A");
+
+    private void GenerateTabB() => Panel.GenerateForTab("B");
+
+    public void Dispose() => Panel.Changed -= OnPanelChanged;
+}

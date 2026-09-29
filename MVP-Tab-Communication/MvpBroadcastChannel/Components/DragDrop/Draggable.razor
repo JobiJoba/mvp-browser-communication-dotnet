@@ -1,0 +1,26 @@
+@namespace MvpBroadcastChannel.Components.DragDrop
+@using MvpBroadcastChannel.Models
+
+<div class="dnd-item"
+     draggable="true"
+     style="--item-color: @Item.Color"
+     title="Drag to a drop zone (including another window)"
+     @ondragstart="OnDragStartAsync"
+     @ondragend="OnDragEndAsync">
+    <span class="dnd-item-title">@Item.Title</span>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public BoardItem Item { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback<BoardItem> DragStarted { get; set; }
+
+    [Parameter]
+    public EventCallback DragEnded { get; set; }
+
+    private Task OnDragStartAsync(DragEventArgs _) => DragStarted.InvokeAsync(Item);
+
+    private Task OnDragEndAsync(DragEventArgs _) => DragEnded.InvokeAsync();
+}

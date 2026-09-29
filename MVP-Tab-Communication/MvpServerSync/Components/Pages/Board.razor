@@ -1,0 +1,129 @@
+@page "/board"
+@rendermode InteractiveServer
+@using MvpServerSync.Components.DragDrop
+@using MvpServerSync.Models
+@using MvpServerSync.Services.Board
+@using MvpServerSync.Services.DragDrop
+@implements IAsyncDisposable
+@inject DragDropCoordinator Coordinator
+@inject IBoardStore BoardStore
+
+<PageTitle>Board — Server Sync</PageTitle>
+
+<section class="board">
+    <header class="board-header">
+        <div>
+            <h1>Cross-window board</h1>
+            <p>
+                Open this page in a <strong>second browser window</strong> side by side.
+                Boxes are shared: moving Box A to Inbox in one window updates the other.
+                Transport: in-process server hub (no JSInterop).
+            </p>
+        </div>
+        <div class="board-meta">
+            <span class="circuit-id" title="This Blazor circuit">Circuit @ShortCircuitId</span>
+            @if (Coordinator.HasRemoteDrag)
+            {
+                <span class="status-pill">Remote drag active</span>
+            }
+        </div>
+    </header>
+
+    <div class="board-grid">
+        <DropZone ZoneId="tray"
+                  Title="Tray"
+                  IsActive="Coordinator.HasRemoteDrag"
+                  IsEmpty="@(ItemsIn("tray").Count() == 0)"
+                  ItemDropped="OnDroppedAsync">
+            @foreach (var item in ItemsIn("tray"))
+            {
+                <Draggable Item="item"
+                           DragStarted="OnDragStartedAsync"
+                           DragEnded="OnDragEndedAsync" />
+            }
+        </DropZone>
+
+        <DropZone ZoneId="inbox"
+                  Title="Inbox"
+                  IsActive="Coordinator.HasRemoteDrag"
+                  IsEmpty="@(ItemsIn("inbox").Count() == 0)"
+                  ItemDropped="OnDroppedAsync">
+            @foreach (var item in ItemsIn("inbox"))
+            {
+                <Draggable Item="item"
+                           DragStarted="OnDragStartedAsync"
+                           DragEnded="OnDragEndedAsync" />
+            }
+        </DropZone>
+
+        <DropZone ZoneId="archive"
+                  Title="Archive"
+                  IsActive="Coordinator.HasRemoteDrag"
+                  IsEmpty="@(ItemsIn("archive").Count() == 0)"
+                  ItemDropped="OnDroppedAsync">
+            @foreach (var item in ItemsIn("archive"))
+            {
+                <Draggable Item="item"
+                           DragStarted="OnDragStartedAsync"
+                           DragEnded="OnDragEndedAsync" />
+            }
+        </DropZone>
+    </div>
+</section>
+
+@code {
+    private List<BoardItem> _items = [];
+
+    private string ShortCircuitId => Coordinator.CircuitId[..8];
+
+    protected override void OnInitialized()
+    {
+        _items = BoardStore.GetSnapshot().ToList();
+        BoardStore.Changed += OnBoardChangedAsync;
+
+        Coordinator.Dispatcher = InvokeAsync;
+        Coordinator.Changed += OnCoordinatorChangedAsync;
+        Coordinator.Start();
+    }
+
+    private IEnumerable<BoardItem> ItemsIn(string zoneId) =>
+        _items.Where(i => i.ZoneId == zoneId);
+
+    private Task OnCoordinatorChangedAsync() => InvokeAsync(StateHasChanged);
+
+    private Task OnBoardChangedAsync() => InvokeAsync(() =>
+    {
+        _items = BoardStore.GetSnapshot().ToList();
+        StateHasChanged();
+        return Task.CompletedTask;
+    });
+
+    private Task OnDragStartedAsync(BoardItem item) =>
+        Coordinator.BeginLocalDragAsync(item);
+
+    private Task OnDragEndedAsync() =>
+        Coordinator.EndLocalDragAsync();
+
+    private async Task OnDroppedAsync(string zoneId)
+    {
+        if (Coordinator.RemoteDrag is { } remote)
+        {
+            BoardStore.MoveItem(remote.Payload.ItemId, zoneId);
+            await Coordinator.AcceptRemoteDropAsync(zoneId);
+            return;
+        }
+
+        if (Coordinator.LocalDrag is { } local)
+        {
+            BoardStore.MoveItem(local.Payload.ItemId, zoneId);
+            await Coordinator.AcceptLocalDropAsync(zoneId);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        BoardStore.Changed -= OnBoardChangedAsync;
+        Coordinator.Changed -= OnCoordinatorChangedAsync;
+        await Coordinator.DisposeAsync();
+    }
+}
