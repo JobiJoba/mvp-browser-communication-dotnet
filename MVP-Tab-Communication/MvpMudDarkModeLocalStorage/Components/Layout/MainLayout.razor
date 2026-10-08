@@ -1,0 +1,109 @@
+﻿@inherits LayoutComponentBase
+@implements IDisposable
+@using MvpMudDarkModeLocalStorage.Models
+@using MvpMudDarkModeLocalStorage.Services
+@inject ThemeService ThemeService
+
+<MudThemeProvider @ref="_themeProvider"
+                  @bind-IsDarkMode="_isDarkMode"
+                  Theme="_theme"
+                  ObserveSystemDarkModeChange="_observeSystem" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1" Dense="true" Color="Color.Error">
+        <MudText Typo="Typo.h6" Class="ml-2">Mud Dark Mode — LocalStorage</MudText>
+        <MudSpacer />
+        <ThemeToggle GetSystemDarkModeAsync="GetSystemDarkModeAsync" />
+    </MudAppBar>
+    <MudMainContent Class="pa-4">
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private readonly MudTheme _theme = AppTheme.Create();
+    private MudThemeProvider? _themeProvider;
+    private bool _isDarkMode;
+    private bool _observeSystem;
+    private bool _systemWatchStarted;
+
+    protected override void OnInitialized()
+    {
+        // Intentionally start with defaults — localStorage is not readable yet.
+        // This is the FOUC: first paint is light until OnAfterRenderAsync hydrates.
+        SyncFromService();
+        ThemeService.Changed += OnThemeServiceChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _themeProvider is null || ThemeService.IsHydrated)
+        {
+            return;
+        }
+
+        await ThemeService.HydrateFromLocalStorageAsync(GetSystemDarkModeAsync);
+        SyncFromService();
+        if (ThemeService.Preference == ThemePreference.System)
+        {
+            await EnsureSystemWatchAsync();
+        }
+
+        StateHasChanged();
+    }
+
+    private async void OnThemeServiceChanged()
+    {
+        SyncFromService();
+        if (ThemeService.Preference == ThemePreference.System)
+        {
+            await EnsureSystemWatchAsync();
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void SyncFromService()
+    {
+        _isDarkMode = ThemeService.IsDarkMode;
+        _observeSystem = ThemeService.ObserveSystemDarkModeChange;
+    }
+
+    private async Task<bool> GetSystemDarkModeAsync()
+    {
+        if (_themeProvider is null)
+        {
+            return false;
+        }
+
+        return await _themeProvider.GetSystemDarkModeAsync();
+    }
+
+    private async Task EnsureSystemWatchAsync()
+    {
+        if (_systemWatchStarted || _themeProvider is null)
+        {
+            return;
+        }
+
+        _systemWatchStarted = true;
+        await _themeProvider.WatchSystemDarkModeAsync(OnSystemDarkModeChangedAsync);
+    }
+
+    private Task OnSystemDarkModeChangedAsync(bool isDark)
+    {
+        ThemeService.ApplySystemDarkMode(isDark);
+        return Task.CompletedTask;
+    }
+
+    public void Dispose() => ThemeService.Changed -= OnThemeServiceChanged;
+}

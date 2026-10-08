@@ -1,0 +1,87 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@using MvpMudDarkModeLocalStorage.Services
+@inject ThemeService ThemeService
+@implements IDisposable
+
+<PageTitle>Mud Dark Mode — LocalStorage</PageTitle>
+
+<MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mb-4" Dense="true">
+    <strong>LocalStorage anti-pattern (demo).</strong>
+    Preference can only be read after the first interactive render via JS.
+    Set <strong>Dark</strong>, then hard-refresh — watch for a brief light flash before dark applies.
+</MudAlert>
+
+@if (!ThemeService.IsHydrated)
+{
+    <MudAlert Severity="Severity.Info" Class="mb-4" Dense="true">
+        Hydrating preference from localStorage…
+    </MudAlert>
+}
+
+<MudText Typo="Typo.h4" Class="mb-2">Theme playground</MudText>
+<MudText Typo="Typo.body1" Class="mb-4 mud-text-secondary">
+    Current preference: <strong>@ThemeService.Preference</strong>
+    · Resolved mode: <strong>@(ThemeService.IsDarkMode ? "Dark" : "Light")</strong>
+    · Hydrated: <strong>@ThemeService.IsHydrated</strong>
+</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-3">Controls</MudText>
+            <MudStack Spacing="3">
+                <MudTextField Label="Sample field" Variant="Variant.Outlined" @bind-Value="_name" />
+                <MudSelect T="string" Label="Sample select" Variant="Variant.Outlined" @bind-Value="_role">
+                    <MudSelectItem Value="@("Developer")" />
+                    <MudSelectItem Value="@("Designer")" />
+                    <MudSelectItem Value="@("PM")" />
+                </MudSelect>
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary">Primary</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary">Secondary</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Default">Outlined</MudButton>
+                </MudStack>
+                <MudSwitch @bind-Value="_switchOn" Color="Color.Primary" Label="Sample switch" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-3">Surfaces</MudText>
+            <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>MudThemeProvider</td><td>Hydrated after first render</td></tr>
+                    <tr><td>Light / Dark / System</td><td>AppBar toggle</td></tr>
+                    <tr><td>ObserveSystemDarkModeChange</td><td>@(ThemeService.ObserveSystemDarkModeChange ? "On" : "Off")</td></tr>
+                </tbody>
+            </MudSimpleTable>
+            <MudChipSet T="string" Class="mt-4">
+                <MudChip T="string" Color="Color.Primary" Text="Primary chip" />
+                <MudChip T="string" Color="Color.Secondary" Text="Secondary chip" />
+                <MudChip T="string" Color="Color.Success" Text="Success chip" />
+            </MudChipSet>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private string _name = "Ada";
+    private string _role = "Developer";
+    private bool _switchOn = true;
+
+    protected override void OnInitialized()
+    {
+        ThemeService.Changed += OnChanged;
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ThemeService.Changed -= OnChanged;
+}

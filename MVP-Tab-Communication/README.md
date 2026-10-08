@@ -81,3 +81,19 @@ Open http://127.0.0.1:5300/messages
 
 - **Index** (protocol overview + Azure decision tree): [IMPLEMENTATION.md](IMPLEMENTATION.md)
 - **Per MVP** (mermaid flows, DI, file map): see the Deep dive column above.
+
+## MudBlazor theming (unrelated to cross-tab)
+
+Two Blazor Server demos of **Light / Dark / System** with MudBlazor — same UI, opposite persistence — so you can compare FOUC behavior.
+
+| Project | Persistence | FOUC on refresh? | Port | Deep dive |
+| --- | --- | --- | --- | --- |
+| [`MvpMudDarkModeCookie/`](MvpMudDarkModeCookie/) | HTTP cookie (readable on prerender) | No | http://localhost:5210 | [IMPLEMENTATION](MvpMudDarkModeCookie/IMPLEMENTATION.md) |
+| [`MvpMudDarkModeLocalStorage/`](MvpMudDarkModeLocalStorage/) | `localStorage` (JS after first render) | Yes | http://localhost:5211 | [IMPLEMENTATION](MvpMudDarkModeLocalStorage/IMPLEMENTATION.md) |
+
+```bash
+dotnet run --project MvpMudDarkModeCookie
+dotnet run --project MvpMudDarkModeLocalStorage
+```
+
+In each app: set **Dark**, hard-refresh. Cookie stays dark immediately; LocalStorage briefly flashes light.

@@ -1,0 +1,171 @@
+@page "/messages-cache/{Id:guid}"
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+@using MvpDockerMessages.Web.Models
+@using MvpDockerMessages.Web.Services
+@inject MessagesApiClient Api
+@inject MessagesCacheTabBus TabBus
+
+<PageTitle>@( _draft?.Subject ?? "Message" )</PageTitle>
+
+@if (_error is not null)
+{
+    <p class="messages-error">@_error</p>
+}
+else if (_draft is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <article class="message-detail">
+        <header class="message-detail-header">
+            <h1>@_draft.Subject</h1>
+            <span class="state-badge state-@_selectedState.ToString().ToLowerInvariant()">
+                @FormatState(_selectedState)
+            </span>
+        </header>
+
+        <p class="message-meta">
+            Opened in a separate browser tab. Choose a state, then <strong>Save</strong>
+            (persist + notify overview + close) or <strong>Cancel</strong> (close only).
+        </p>
+
+        <div class="message-body">
+            @_draft.Body
+        </div>
+
+        <section class="state-actions">
+            <h2>Change state</h2>
+            <div class="state-buttons">
+                @foreach (var state in AllStates)
+                {
+                    <button type="button"
+                            class="btn @(state == _selectedState ? "btn-primary" : "btn-secondary")"
+                            disabled="@_busy"
+                            @onclick="() => _selectedState = state">
+                        @FormatState(state)
+                    </button>
+                }
+            </div>
+        </section>
+
+        <div class="detail-actions">
+            <button type="button" class="btn btn-primary" disabled="@_busy" @onclick="SaveAsync">
+                Save
+            </button>
+            <button type="button" class="btn btn-secondary" disabled="@_busy" @onclick="CancelAsync">
+                Cancel
+            </button>
+        </div>
+
+        @if (_status is not null)
+        {
+            <p class="save-feedback">@_status</p>
+        }
+    </article>
+}
+
+@code {
+    private static readonly MessageState[] AllStates =
+    [
+        MessageState.Waiting,
+        MessageState.Processed,
+        MessageState.Deleted
+    ];
+
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private MessageDto? _draft;
+    private MessageState _selectedState;
+    private string? _error;
+    private string? _status;
+    private bool _busy;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _error = null;
+        _status = null;
+        try
+        {
+            _draft = await Api.GetMessageAsync(Id);
+            if (_draft is null)
+            {
+                _error = "Message not found.";
+                return;
+            }
+
+            _selectedState = _draft.State;
+            await TabBus.EnsureStartedAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not load message: {ex.Message}";
+            _draft = null;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_draft is null || _busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        _status = null;
+        try
+        {
+            var updated = await Api.UpdateStateAsync(Id, _selectedState);
+            if (updated is null)
+            {
+                _status = "Message no longer exists.";
+                return;
+            }
+
+            // Notify the overview tab (other circuit) to patch its cache — no full list reload there.
+            await TabBus.PublishUpdatedAsync(updated);
+            _status = "Saved. Closing this tab…";
+            await TabBus.CloseThisTabAsync();
+            _status = "Saved. If this tab is still open, you can close it manually (browser blocked window.close).";
+        }
+        catch (Exception ex)
+        {
+            _status = $"Save failed: {ex.Message}";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task CancelAsync()
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await TabBus.CloseThisTabAsync();
+            _status = "Cancel did not close the tab — close it manually if needed.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string FormatState(MessageState state) => state switch
+    {
+        MessageState.Waiting => "In waiting",
+        MessageState.Processed => "Processed",
+        MessageState.Deleted => "Deleted",
+        _ => state.ToString()
+    };
+
+    public async ValueTask DisposeAsync() => await TabBus.DisposeAsync();
+}

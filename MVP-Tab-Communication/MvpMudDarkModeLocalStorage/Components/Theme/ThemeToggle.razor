@@ -1,0 +1,50 @@
+@using MvpMudDarkModeLocalStorage.Models
+@using MvpMudDarkModeLocalStorage.Services
+@inject ThemeService ThemeService
+@implements IDisposable
+
+<MudToggleGroup T="ThemePreference"
+                Value="_preference"
+                ValueChanged="OnPreferenceChangedAsync"
+                Color="Color.Primary"
+                CheckMark="false"
+                Size="Size.Small"
+                Class="theme-toggle"
+                Disabled="@(!ThemeService.IsHydrated)">
+    <MudToggleItem Value="ThemePreference.Light" Text="Light" />
+    <MudToggleItem Value="ThemePreference.Dark" Text="Dark" />
+    <MudToggleItem Value="ThemePreference.System" Text="System" />
+</MudToggleGroup>
+
+@code {
+    private ThemePreference _preference = ThemePreference.System;
+    private Func<Task<bool>>? _getSystemDarkMode;
+
+    [Parameter]
+    public Func<Task<bool>>? GetSystemDarkModeAsync { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _preference = ThemeService.Preference;
+        ThemeService.Changed += OnThemeChanged;
+    }
+
+    protected override void OnParametersSet()
+    {
+        _getSystemDarkMode = GetSystemDarkModeAsync;
+    }
+
+    private void OnThemeChanged()
+    {
+        _preference = ThemeService.Preference;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnPreferenceChangedAsync(ThemePreference preference)
+    {
+        await ThemeService.SetPreferenceAsync(preference, _getSystemDarkMode);
+        _preference = preference;
+    }
+
+    public void Dispose() => ThemeService.Changed -= OnThemeChanged;
+}

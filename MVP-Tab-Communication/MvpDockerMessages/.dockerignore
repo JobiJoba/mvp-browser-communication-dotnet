@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.idea/
+**/*.user
+**/.DS_Store
+**/appsettings.*.local.json
+.git/
+.gitignore
+README.md
+IMPLEMENTATION.md
+SCENARIOS.md

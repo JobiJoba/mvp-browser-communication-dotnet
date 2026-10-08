@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "roboto",
+        "createdAt": "2026-10-08T06:50:19.147Z",
+        "reason": "MudBlazor Material Design demo uses official Roboto stack from MudBlazor docs"
+      }
+    ]
+  }
+}

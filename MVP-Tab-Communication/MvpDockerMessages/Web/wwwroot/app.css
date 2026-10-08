@@ -1,0 +1,207 @@
+h1:focus {
+    outline: none;
+}
+
+html, body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    margin: 0;
+}
+
+a, .btn-link {
+    color: #006bb7;
+}
+
+.btn {
+    display: inline-block;
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font: inherit;
+}
+
+.btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.btn-primary {
+    color: #fff;
+    background-color: #1b6ec2;
+    border-color: #1861ac;
+}
+
+.btn-secondary {
+    color: #1f2933;
+    background-color: #e8eef4;
+    border-color: #c5d0db;
+}
+
+.messages-header {
+    margin-bottom: 1.25rem;
+}
+
+.messages-header h1 {
+    margin-bottom: 0.35rem;
+}
+
+.messages-header p {
+    color: #444;
+    margin: 0 0 0.5rem;
+}
+
+.messages-reload-note {
+    max-width: 42rem;
+    font-size: 0.9rem;
+    color: #5b6570;
+    padding: 0.65rem 0.85rem;
+    background: #f0f4f8;
+    border-left: 3px solid #1b6ec2;
+    border-radius: 0 4px 4px 0;
+}
+
+.messages-error {
+    color: #b32121;
+}
+
+.message-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 48rem;
+}
+
+.message-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid #d6dde5;
+    border-radius: 8px;
+    background: #f8fafc;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.message-row:hover {
+    background: #eef5fb;
+    border-color: #9db7d1;
+}
+
+.message-row-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.message-subject {
+    font-weight: 600;
+}
+
+.message-preview {
+    color: #5b6570;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.state-badge {
+    flex-shrink: 0;
+    border-radius: 999px;
+    padding: 0.2rem 0.7rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+}
+
+.state-waiting {
+    background: #fff3cd;
+    color: #7a5b00;
+    border-color: #e6d089;
+}
+
+.state-processed {
+    background: #d4edda;
+    color: #1e6b34;
+    border-color: #a3d4b0;
+}
+
+.state-deleted {
+    background: #f8d7da;
+    color: #842029;
+    border-color: #e4a8ae;
+}
+
+.detail-toolbar {
+    margin-bottom: 1rem;
+}
+
+.message-detail {
+    max-width: 40rem;
+}
+
+.message-detail-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.message-detail-header h1 {
+    margin: 0;
+}
+
+.message-meta {
+    color: #5b6570;
+    font-size: 0.9rem;
+    margin-bottom: 1.25rem;
+}
+
+.message-body {
+    padding: 1rem;
+    background: #f7f8fa;
+    border-radius: 8px;
+    border: 1px solid #e2e6ea;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+
+.state-actions h2 {
+    font-size: 1.05rem;
+    margin-bottom: 0.75rem;
+}
+
+.state-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+}
+
+.save-feedback {
+    margin-top: 0.75rem;
+    color: #1e6b34;
+    font-size: 0.9rem;
+}
+
+.blazor-error-boundary {
+    background: #b32121;
+    padding: 1rem;
+    color: white;
+}
+
+.blazor-error-boundary::after {
+    content: "An error has occurred.";
+}

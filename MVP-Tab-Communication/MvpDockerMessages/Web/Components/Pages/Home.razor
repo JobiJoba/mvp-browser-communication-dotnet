@@ -1,0 +1,36 @@
+﻿@page "/"
+
+<PageTitle>Docker Messages MVP</PageTitle>
+
+<h1>Messages overview / detail</h1>
+
+<p>
+    Docker Compose app with a <strong>backend Api</strong> and a <strong>Blazor Server</strong>
+    frontend. Three navigation scenarios share the same shell:
+</p>
+
+<ol>
+    <li>
+        <a href="messages"><strong>/messages</strong></a> — same-tab detail; full list reload on return.
+    </li>
+    <li>
+        <a href="messages-cache"><strong>/messages-cache</strong></a> — detail in a new tab;
+        cache + <code>BroadcastChannel</code> notify (no Azure extras).
+    </li>
+    <li>
+        <a href="messages-cache-server"><strong>/messages-cache-server</strong></a> — same UX,
+        but notify is <strong>C# in-process</strong> across circuits (<code>MessagesServerSyncBus</code>).
+    </li>
+</ol>
+
+<ol>
+    <li>Start: <code>docker compose up --build</code></li>
+    <li>Open <a href="http://127.0.0.1:5300/messages-cache-server">http://127.0.0.1:5300/messages-cache-server</a></li>
+    <li>Click a message (new tab), change state, <strong>Save</strong> — overview badge updates via server bus.</li>
+</ol>
+
+<p>
+    <a class="btn btn-primary" href="messages">Messages (reload)</a>
+    <a class="btn btn-secondary" href="messages-cache">Messages (cache)</a>
+    <a class="btn btn-secondary" href="messages-cache-server">Messages (cache server)</a>
+</p>
