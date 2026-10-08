@@ -1,0 +1,25 @@
+﻿@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="_theme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1" Dense="true" Color="Color.Primary">
+        <MudText Typo="Typo.h6" Class="ml-2">MudBlazor — Grouped editable grid</MudText>
+    </MudAppBar>
+    <MudMainContent Class="pa-4">
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private readonly MudTheme _theme = new();
+}

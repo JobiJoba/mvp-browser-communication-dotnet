@@ -1,0 +1,194 @@
+﻿@page "/"
+@using System.Globalization
+
+<PageTitle>Duur grid — MudBlazor MVP</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-1">Duur (inline editable)</MudText>
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+    Two-level column headers via <code>MudTable</code> + <code>CustomHeader</code>.
+    Edit any cell directly — the “teller” columns recalculate from the duration groups.
+</MudText>
+
+<div class="duur-grid-wrap">
+    <MudTable T="DuurRow"
+              Items="_rows"
+              Dense="true"
+              Hover="true"
+              Bordered="true"
+              Elevation="0"
+              CustomHeader="true"
+              Breakpoint="Breakpoint.None"
+              Class="duur-grid">
+        <ColGroup>
+            <col style="width: 7%" />
+            <col style="width: 6%" />
+            <col style="width: 9%" />
+            <col style="width: 9%" />
+            <col style="width: 6%" />
+            <col style="width: 7%" />
+            <col style="width: 7%" />
+            <col style="width: 7%" />
+            <col style="width: 6%" />
+            <col style="width: 7%" />
+            <col style="width: 7%" />
+            <col style="width: 7%" />
+            <col style="width: 8%" />
+            <col style="width: 7%" />
+        </ColGroup>
+
+        <HeaderContent>
+            <MudTHeadRow Class="duur-header-top">
+                <MudTh rowspan="2" Class="duur-th">Maximale duur</MudTh>
+                <MudTh rowspan="2" Class="duur-th">Tantième</MudTh>
+                <MudTh rowspan="2" Class="duur-th">Teller niet verminderd</MudTh>
+                <MudTh rowspan="2" Class="duur-th">Teller verminderd</MudTh>
+                <MudTh colspan="4" Class="duur-th duur-group-header duur-group-niet">Niet verminderde duur</MudTh>
+                <MudTh colspan="4" Class="duur-th duur-group-header duur-group-wel">Verminderde duur</MudTh>
+                <MudTh rowspan="2" Class="duur-th">Datum</MudTh>
+                <MudTh rowspan="2" Class="duur-th">Bron</MudTh>
+            </MudTHeadRow>
+            <MudTHeadRow Class="duur-header-sub">
+                <MudTh Class="duur-th duur-group-niet">Jaren</MudTh>
+                <MudTh Class="duur-th duur-group-niet">Kwartalen</MudTh>
+                <MudTh Class="duur-th duur-group-niet">Maanden</MudTh>
+                <MudTh Class="duur-th duur-group-niet">Weken</MudTh>
+                <MudTh Class="duur-th duur-group-wel">Jaren</MudTh>
+                <MudTh Class="duur-th duur-group-wel">Kwartalen</MudTh>
+                <MudTh Class="duur-th duur-group-wel">Maanden</MudTh>
+                <MudTh Class="duur-th duur-group-wel">Weken</MudTh>
+            </MudTHeadRow>
+        </HeaderContent>
+
+        <RowTemplate>
+            <MudTd Class="duur-td" DataLabel="Maximale duur">
+                <MudTextField @bind-Value="context.MaximaleDuur"
+                              Variant="Variant.Text"
+                              Margin="Margin.Dense"
+                              Underline="false"
+                              Class="duur-input"
+                              Immediate="true" />
+            </MudTd>
+            <MudTd Class="duur-td" DataLabel="Tantième">
+                <MudTextField @bind-Value="context.Tantieme"
+                              Variant="Variant.Text"
+                              Margin="Margin.Dense"
+                              Underline="false"
+                              Class="duur-input"
+                              Immediate="true" />
+            </MudTd>
+            <MudTd Class="duur-td duur-td-calc" DataLabel="Teller niet verminderd">
+                <span class="duur-calc" title="Sum of Niet verminderde duur">@context.TellerNietVerminderd</span>
+            </MudTd>
+            <MudTd Class="duur-td duur-td-calc" DataLabel="Teller verminderd">
+                <span class="duur-calc" title="Sum of Verminderde duur">@context.TellerVerminderd</span>
+            </MudTd>
+
+            <MudTd Class="duur-td duur-group-niet" DataLabel="Niet verminderd — Jaren">
+                <MudNumericField T="decimal?" @bind-Value="context.NietVerminderdJaren" @bind-Value:after="Refresh"
+                                Variant="Variant.Text" Margin="Margin.Dense" Underline="false" HideSpinButtons="true"
+                                Culture="@Nl" Format="0.##" Class="duur-input duur-input-num" Immediate="true" />
+            </MudTd>
+            <MudTd Class="duur-td duur-group-niet" DataLabel="Niet verminderd — Kwartalen">
+                <MudNumericField T="decimal?" @bind-Value="context.NietVerminderdKwartalen" @bind-Value:after="Refresh"
+                                Variant="Variant.Text" Margin="Margin.Dense" Underline="false" HideSpinButtons="true"
+                                Culture="@Nl" Format="0.##" Class="duur-input duur-input-num" Immediate="true" />
+            </MudTd>
+            <MudTd Class="duur-td duur-group-niet" DataLabel="Niet verminderd — Maanden">
+                <MudNumericField T="decimal?" @bind-Value="context.NietVerminderdMaanden" @bind-Value:after="Refresh"
+                                Variant="Variant.Text" Margin="Margin.Dense" Underline="false" HideSpinButtons="true"
+                                Culture="@Nl" Format="0.##" Class="duur-input duur-input-num" Immediate="true" />
+            </MudTd>
+            <MudTd Class="duur-td duur-group-niet" DataLabel="Niet verminderd — Weken">
+                <MudNumericField T="decimal?" @bind-Value="context.NietVerminderdWeken" @bind-Value:after="Refresh"
+                                Variant="Variant.Text" Margin="Margin.Dense" Underline="false" HideSpinButtons="true"
+                                Culture="@Nl" Format="0.##" Class="duur-input duur-input-num" Immediate="true" />
+            </MudTd>
+
+            <MudTd Class="duur-td duur-group-wel" DataLabel="Verminderd — Jaren">
+                <MudNumericField T="decimal?" @bind-Value="context.VerminderdJaren" @bind-Value:after="Refresh"
+                                Variant="Variant.Text" Margin="Margin.Dense" Underline="false" HideSpinButtons="true"
+                                Culture="@Nl" Format="0.##" Class="duur-input duur-input-num" Immediate="true" />
+            </MudTd>
+            <MudTd Class="duur-td duur-group-wel" DataLabel="Verminderd — Kwartalen">
+                <MudNumericField T="decimal?" @bind-Value="context.VerminderdKwartalen" @bind-Value:after="Refresh"
+                                Variant="Variant.Text" Margin="Margin.Dense" Underline="false" HideSpinButtons="true"
+                                Culture="@Nl" Format="0.##" Class="duur-input duur-input-num" Immediate="true" />
+            </MudTd>
+            <MudTd Class="duur-td duur-group-wel" DataLabel="Verminderd — Maanden">
+                <MudNumericField T="decimal?" @bind-Value="context.VerminderdMaanden" @bind-Value:after="Refresh"
+                                Variant="Variant.Text" Margin="Margin.Dense" Underline="false" HideSpinButtons="true"
+                                Culture="@Nl" Format="0.##" Class="duur-input duur-input-num" Immediate="true" />
+            </MudTd>
+            <MudTd Class="duur-td duur-group-wel" DataLabel="Verminderd — Weken">
+                <MudNumericField T="decimal?" @bind-Value="context.VerminderdWeken" @bind-Value:after="Refresh"
+                                Variant="Variant.Text" Margin="Margin.Dense" Underline="false" HideSpinButtons="true"
+                                Culture="@Nl" Format="0.##" Class="duur-input duur-input-num" Immediate="true" />
+            </MudTd>
+
+            <MudTd Class="duur-td" DataLabel="Datum">
+                <MudDatePicker @bind-Date="context.Datum"
+                               Variant="Variant.Text"
+                               Margin="Margin.Dense"
+                               Editable="true"
+                               DateFormat="dd/MM/yyyy"
+                               Class="duur-input duur-input-date" />
+            </MudTd>
+            <MudTd Class="duur-td" DataLabel="Bron">
+                <MudTextField @bind-Value="context.Bron"
+                              Variant="Variant.Text"
+                              Margin="Margin.Dense"
+                              Underline="false"
+                              Class="duur-input"
+                              Immediate="true" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</div>
+
+<div class="mt-3 d-flex gap-2">
+    <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow">
+        Add row
+    </MudButton>
+    <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="ResetDemo">
+        Reset demo data
+    </MudButton>
+</div>
+
+@code {
+    private static readonly CultureInfo Nl = CultureInfo.GetCultureInfo("nl-BE");
+
+    private List<DuurRow> _rows = CreateDemoRows();
+
+    private void Refresh() => StateHasChanged();
+
+    private void AddRow() => _rows.Add(new DuurRow());
+
+    private void ResetDemo() => _rows = CreateDemoRows();
+
+    private static List<DuurRow> CreateDemoRows() =>
+    [
+        new DuurRow
+        {
+            MaximaleDuur = "12/45",
+            Tantieme = "1/60",
+            NietVerminderdJaren = 38.19m,
+            NietVerminderdKwartalen = 152.77m,
+            NietVerminderdMaanden = 458.32m,
+            NietVerminderdWeken = 1922.86m,
+            VerminderdJaren = 38.19m,
+            VerminderdKwartalen = 152.77m,
+            VerminderdMaanden = 458.32m,
+            VerminderdWeken = 1922.86m,
+            Datum = new DateTime(2021, 12, 15),
+            Bron = "Systeem"
+        },
+        new DuurRow
+        {
+            MaximaleDuur = "...",
+            Tantieme = "...",
+            Bron = "..."
+        },
+        new DuurRow(),
+        new DuurRow()
+    ];
+}
