@@ -1,5 +1,6 @@
 const CHANNEL_NAME = "case-side-panel-dnd-v1";
 
+/** Always a fresh UUID — do not tie this to sessionStorage (duplicated tabs clone it). */
 export function createChannel() {
   const tabId = crypto.randomUUID();
   const channel = new BroadcastChannel(CHANNEL_NAME);

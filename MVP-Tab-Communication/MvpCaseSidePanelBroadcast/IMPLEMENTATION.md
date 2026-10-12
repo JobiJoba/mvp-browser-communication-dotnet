@@ -64,7 +64,12 @@ flowchart TB
 | --- | --- | --- |
 | `ICrossTabBus` / `CrossTabBus` | Scoped | Browser pub/sub |
 | `SidePanelState` | Scoped | This window’s links |
+| `SidePanelSessionStore` | Scoped | `sessionStorage` restore/save |
 | `DragDropCoordinator` | Scoped | Gesture + 150 ms grace |
+
+### Refresh survival
+
+`SidePanelState` is circuit memory, so a full page reload would otherwise empty the panel. `SidePanelSessionStore` keeps a per-window snapshot in **`sessionStorage`** (case links, seed label, selection). BroadcastChannel `tabId` stays a **fresh UUID per circuit** (duplicated tabs clone `sessionStorage`, so reusing it as `tabId` would make both windows ignore each other). Closing the tab clears the snapshot.
 
 ---
 
@@ -108,12 +113,13 @@ sequenceDiagram
 
 ```csharp
 builder.Services.AddSingleton<ICaseCatalog, CaseCatalog>();
+builder.Services.AddScoped<SidePanelSessionStore>();
 builder.Services.AddScoped<ICrossTabBus, CrossTabBus>();
 builder.Services.AddScoped<SidePanelState>();
 builder.Services.AddScoped<DragDropCoordinator>();
 ```
 
-`await Coordinator.StartAsync()` after first interactive render (needs JSInterop).
+After first interactive render: `await Session.InitializeAsync(Panel)` then `await Coordinator.StartAsync()` (both need JSInterop).
 
 ---
 
@@ -145,7 +151,9 @@ flowchart TB
 | `Program.cs` | DI |
 | `Services/CrossTab/*` | Bus |
 | `wwwroot/js/crossTabChannel.js` | BroadcastChannel |
+| `wwwroot/js/sidePanelSession.js` | sessionStorage panel snapshot |
 | `Services/SidePanel/SidePanelState.cs` | Per-window list |
+| `Services/SidePanel/SidePanelSessionStore.cs` | Restore/save snapshot |
 | `Components/SidePanel/CaseSidePanel.razor` | UI |
 
 Compare: [MvpCaseSidePanelServer](../MvpCaseSidePanelServer/IMPLEMENTATION.md), [MvpBroadcastChannel](../MvpBroadcastChannel/IMPLEMENTATION.md). Index: [../IMPLEMENTATION.md](../IMPLEMENTATION.md).

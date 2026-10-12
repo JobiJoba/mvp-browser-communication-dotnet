@@ -36,6 +36,8 @@ public sealed class CrossTabBus : ICrossTabBus
             return;
         }
 
+        // Fresh UUID per circuit — must not reuse sessionStorage window ids.
+        // Duplicated tabs clone sessionStorage; identical tabIds would drop all BroadcastChannel messages.
         _module = await _js.InvokeAsync<IJSObjectReference>("import", "./js/crossTabChannel.js");
         _channel = await _module.InvokeAsync<IJSObjectReference>("createChannel");
         TabId = await _channel.InvokeAsync<string>("getTabId");

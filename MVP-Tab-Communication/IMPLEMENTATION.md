@@ -41,7 +41,7 @@ stateDiagram-v2
 | [MvpAspirePostgres](./MvpAspirePostgres/) | HTTP + SignalR → Api | Postgres via Api | [IMPLEMENTATION](./MvpAspirePostgres/IMPLEMENTATION.md) |
 | [MvpAspireMessages](./MvpAspireMessages/) | HTTP → Api | In-memory messages | [IMPLEMENTATION](./MvpAspireMessages/IMPLEMENTATION.md) |
 | [MvpCaseSidePanelServer](./MvpCaseSidePanelServer/) | In-process hub | Per-window `SidePanelState` | [IMPLEMENTATION](./MvpCaseSidePanelServer/IMPLEMENTATION.md) |
-| [MvpCaseSidePanelBroadcast](./MvpCaseSidePanelBroadcast/) | `BroadcastChannel` | Per-window panel | [IMPLEMENTATION](./MvpCaseSidePanelBroadcast/IMPLEMENTATION.md) |
+| [MvpCaseSidePanelBroadcast](./MvpCaseSidePanelBroadcast/) | `BroadcastChannel` | Per-window panel + `sessionStorage` restore | [IMPLEMENTATION](./MvpCaseSidePanelBroadcast/IMPLEMENTATION.md) |
 
 ```mermaid
 flowchart LR

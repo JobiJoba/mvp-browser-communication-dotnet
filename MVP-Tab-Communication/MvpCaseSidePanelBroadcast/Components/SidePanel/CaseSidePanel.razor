@@ -4,6 +4,7 @@
 @using MvpCaseSidePanelBroadcast.Services.SidePanel
 @implements IAsyncDisposable
 @inject SidePanelState Panel
+@inject SidePanelSessionStore Session
 @inject DragDropCoordinator Coordinator
 
 <aside class="case-side-panel @(Coordinator.HasRemoteDrag ? "is-active" : null) @(IsDragOver ? "is-over" : null)"
@@ -57,6 +58,7 @@
         Coordinator.Changed += OnChangedAsync;
         Coordinator.LinkRemovedRemotely += OnLinkRemovedAsync;
         Panel.Changed += OnPanelChanged;
+        await Session.InitializeAsync(Panel);
         await Coordinator.StartAsync();
         _started = true;
         await InvokeAsync(StateHasChanged);

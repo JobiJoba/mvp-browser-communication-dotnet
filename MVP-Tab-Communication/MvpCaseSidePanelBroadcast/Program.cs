@@ -10,6 +10,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddSingleton<ICaseCatalog, CaseCatalog>();
+builder.Services.AddScoped<SidePanelSessionStore>();
 builder.Services.AddScoped<ICrossTabBus, CrossTabBus>();
 builder.Services.AddScoped<SidePanelState>();
 builder.Services.AddScoped<DragDropCoordinator>();

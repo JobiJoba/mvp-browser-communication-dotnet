@@ -27,6 +27,8 @@ Each window opens the **same workspace page** with an empty side panel. You choo
 
 Clicking a link shows case detail in that window. Dragging a link into the other window’s panel **moves** it.
 
+**Broadcast variant:** panel contents survive **refresh** via `sessionStorage` (per window). BroadcastChannel `tabId` is still a fresh UUID each load — do not reuse the storage key as `tabId` (duplicated tabs clone `sessionStorage` and would ignore each other).
+
 ```bash
 dotnet run --project MvpCaseSidePanelServer
 # or
@@ -37,6 +39,7 @@ dotnet run --project MvpCaseSidePanelBroadcast
 2. Left window: click **Generate cases for Tab A**.
 3. Right window: click **Generate cases for Tab B**.
 4. Drag a link from one “Managed cases” panel onto the other; confirm the move.
+5. (Broadcast only) Refresh a window — its panel list should restore.
 
 ## Shared board demos
 

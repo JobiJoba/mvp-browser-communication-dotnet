@@ -39,6 +39,32 @@ public sealed class SidePanelState
         Changed?.Invoke();
     }
 
+    public void Restore(SidePanelSnapshot snapshot)
+    {
+        _links.Clear();
+        foreach (var link in snapshot.Links)
+        {
+            _links.Add(link);
+        }
+
+        GeneratedAs = snapshot.GeneratedAs;
+        SelectedCaseId = snapshot.SelectedCaseId;
+        if (SelectedCaseId is not null
+            && !_links.Any(l => l.CaseId.Equals(SelectedCaseId, StringComparison.OrdinalIgnoreCase)))
+        {
+            SelectedCaseId = _links.FirstOrDefault()?.CaseId;
+        }
+        else if (SelectedCaseId is null)
+        {
+            SelectedCaseId = _links.FirstOrDefault()?.CaseId;
+        }
+
+        Changed?.Invoke();
+    }
+
+    public SidePanelSnapshot ToSnapshot() =>
+        new(GeneratedAs, SelectedCaseId, _links.ToList());
+
     public void SelectCase(string caseId)
     {
         SelectedCaseId = caseId;
