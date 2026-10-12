@@ -7,6 +7,7 @@ Demos of cross-window drag-and-drop for Blazor Server (.NET 10).
 | Project | What it demos | Transport | Port | Deep dive |
 | --- | --- | --- | --- | --- |
 | [`MvpBroadcastChannel/`](MvpBroadcastChannel/) | Shared board boxes | `BroadcastChannel` + JSInterop | http://localhost:5201 | [IMPLEMENTATION](MvpBroadcastChannel/IMPLEMENTATION.md) |
+| [`MvpBoardBroadcastDb/`](MvpBoardBroadcastDb/) | Board + persist (Web + Api + SQLite) | `BroadcastChannel` + REST API | Web :5400, Api :5405 | [IMPLEMENTATION](MvpBoardBroadcastDb/IMPLEMENTATION.md) |
 | [`MvpServerSync/`](MvpServerSync/) | Shared board boxes | In-process hub (no JSInterop) | http://localhost:5202 | [IMPLEMENTATION](MvpServerSync/IMPLEMENTATION.md) |
 | [`MvpAspireRedis/`](MvpAspireRedis/) | Same board as Server Sync | Redis + **web-a** / **web-b** (Aspire AppHost) | Dashboard → **web-a** & **web-b** (:5280 / :5281) | [IMPLEMENTATION](MvpAspireRedis/IMPLEMENTATION.md) |
 | [`MvpAspirePostgres/`](MvpAspirePostgres/) | Same board via **Api** + frontend | Postgres API + SignalR; **web-a** / **web-b** | Dashboard → **web-a** & **web-b** (:5290 / :5291), Api :5295 | [IMPLEMENTATION](MvpAspirePostgres/IMPLEMENTATION.md) |
@@ -50,6 +51,12 @@ dotnet run --project MvpServerSync
 ```
 
 Open `/board` in two windows. Boxes are shared by id: moving Box A updates both windows.
+
+[`MvpBoardBroadcastDb/`](MvpBoardBroadcastDb/) is the simple **Web + Api + SQLite** variant: live tabs sync via BroadcastChannel; drops are saved to the API so a refresh reloads the latest board. Aspire AppHost starts both (no Docker).
+
+```bash
+dotnet run --project MvpBoardBroadcastDb/AppHost
+```
 
 ### Multi-container / scale-out
 

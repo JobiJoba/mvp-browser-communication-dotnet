@@ -1,0 +1,214 @@
+@page "/board"
+@rendermode InteractiveServer
+@using MvpBoardBroadcastDb.Web.Services.Api
+@implements IAsyncDisposable
+@inject DragDropCoordinator Coordinator
+@inject BoardApiClient Api
+
+<PageTitle>Board — BroadcastChannel + DB</PageTitle>
+
+<section class="board">
+    <header class="board-header">
+        <div>
+            <h1>Persisted cross-tab board</h1>
+            <p>
+                Open this page in a <strong>second browser window</strong> side by side.
+                Drag a box onto a zone in the other window — live sync uses <code>BroadcastChannel</code>.
+                Each drop is also saved to the API; refresh reloads from SQLite.
+            </p>
+        </div>
+        <div class="board-meta">
+            <span class="circuit-id" title="This browser tab id">Tab @ShortTabId</span>
+            @if (!string.IsNullOrEmpty(_status))
+            {
+                <span class="status-pill">@_status</span>
+            }
+            else if (Coordinator.HasRemoteDrag)
+            {
+                <span class="status-pill">Drop here (remote drag)</span>
+            }
+        </div>
+    </header>
+
+    @if (_loadError is not null)
+    {
+        <p class="text-danger">@_loadError</p>
+    }
+    else if (!_loaded)
+    {
+        <p>Loading board…</p>
+    }
+    else
+    {
+        <div class="board-grid">
+            <DropZone ZoneId="tray"
+                      Title="Tray"
+                      IsActive="Coordinator.HasRemoteDrag"
+                      IsEmpty="@(ItemsIn("tray").Count() == 0)"
+                      ItemDropped="OnDroppedAsync">
+                @foreach (var item in ItemsIn("tray"))
+                {
+                    <Draggable Item="item"
+                               DragStarted="OnDragStartedAsync"
+                               DragEnded="OnDragEndedAsync" />
+                }
+            </DropZone>
+
+            <DropZone ZoneId="inbox"
+                      Title="Inbox"
+                      IsActive="Coordinator.HasRemoteDrag"
+                      IsEmpty="@(ItemsIn("inbox").Count() == 0)"
+                      ItemDropped="OnDroppedAsync">
+                @foreach (var item in ItemsIn("inbox"))
+                {
+                    <Draggable Item="item"
+                               DragStarted="OnDragStartedAsync"
+                               DragEnded="OnDragEndedAsync" />
+                }
+            </DropZone>
+
+            <DropZone ZoneId="archive"
+                      Title="Archive"
+                      IsActive="Coordinator.HasRemoteDrag"
+                      IsEmpty="@(ItemsIn("archive").Count() == 0)"
+                      ItemDropped="OnDroppedAsync">
+                @foreach (var item in ItemsIn("archive"))
+                {
+                    <Draggable Item="item"
+                               DragStarted="OnDragStartedAsync"
+                               DragEnded="OnDragEndedAsync" />
+                }
+            </DropZone>
+        </div>
+    }
+</section>
+
+@code {
+    private readonly List<BoardItem> _items = [];
+    private bool _loaded;
+    private bool _channelStarted;
+    private string? _loadError;
+    private string? _status;
+
+    private string ShortTabId =>
+        string.IsNullOrEmpty(Coordinator.TabId) ? "…" : Coordinator.TabId[..8];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var items = await Api.GetBoardAsync();
+            _items.Clear();
+            _items.AddRange(items);
+            _loaded = true;
+        }
+        catch (Exception ex)
+        {
+            _loadError = $"Could not load board from API. Is the Api running on :5405? ({ex.Message})";
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Start channel once data is ready (not only on firstRender — load may finish later).
+        if (_channelStarted || !_loaded)
+        {
+            return;
+        }
+
+        Coordinator.Dispatcher = InvokeAsync;
+        Coordinator.Changed += OnCoordinatorChangedAsync;
+        Coordinator.ItemMoved += OnItemMovedAsync;
+        await Coordinator.StartAsync();
+        _channelStarted = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private IEnumerable<BoardItem> ItemsIn(string zoneId) =>
+        _items.Where(i => i.ZoneId == zoneId);
+
+    private Task OnCoordinatorChangedAsync() => InvokeAsync(StateHasChanged);
+
+    private Task OnItemMovedAsync(string itemId, string zoneId)
+    {
+        // Other tab already persisted; mirror UI only.
+        MoveLocal(itemId, zoneId);
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnDragStartedAsync(BoardItem item) =>
+        Coordinator.BeginLocalDragAsync(item);
+
+    private Task OnDragEndedAsync() =>
+        Coordinator.EndLocalDragAsync();
+
+    private async Task OnDroppedAsync(string zoneId)
+    {
+        // Broadcast first, then persist — otherwise a slow API call lets the source
+        // tab's DragCancelled win the 150ms race and other tabs never see DropAccepted.
+        if (Coordinator.RemoteDrag is { } remote)
+        {
+            var itemId = remote.Payload.ItemId;
+            MoveLocal(itemId, zoneId);
+            await Coordinator.AcceptRemoteDropAsync(zoneId);
+            await PersistMoveAsync(itemId, zoneId);
+            return;
+        }
+
+        if (Coordinator.LocalDrag is { } local)
+        {
+            var itemId = local.Payload.ItemId;
+            MoveLocal(itemId, zoneId);
+            await Coordinator.AcceptLocalDropAsync(zoneId);
+            await PersistMoveAsync(itemId, zoneId);
+        }
+    }
+
+    private async Task PersistMoveAsync(string itemId, string zoneId)
+    {
+        try
+        {
+            _status = "Saving…";
+            await InvokeAsync(StateHasChanged);
+            await Api.MoveItemAsync(itemId, zoneId);
+            _status = "Saved";
+        }
+        catch (Exception ex)
+        {
+            _status = $"Save failed: {ex.Message}";
+        }
+        finally
+        {
+            await InvokeAsync(StateHasChanged);
+            _ = ClearStatusSoonAsync();
+        }
+    }
+
+    private async Task ClearStatusSoonAsync()
+    {
+        await Task.Delay(1200);
+        if (_status is "Saved")
+        {
+            _status = null;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void MoveLocal(string itemId, string zoneId)
+    {
+        var index = _items.FindIndex(i => i.Id == itemId);
+        if (index < 0)
+        {
+            return;
+        }
+
+        _items[index] = _items[index] with { ZoneId = zoneId };
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Coordinator.Changed -= OnCoordinatorChangedAsync;
+        Coordinator.ItemMoved -= OnItemMovedAsync;
+        await Coordinator.DisposeAsync();
+    }
+}

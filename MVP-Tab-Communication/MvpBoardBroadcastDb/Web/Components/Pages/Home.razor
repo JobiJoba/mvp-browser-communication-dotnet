@@ -1,0 +1,23 @@
+﻿@page "/"
+
+<PageTitle>Board Broadcast + DB</PageTitle>
+
+<h1>Persisted board — BroadcastChannel</h1>
+
+<p>
+    Same cross-tab board as <code>MvpBroadcastChannel</code>, plus a small API that stores
+    zone membership in SQLite. Live tabs sync via JSInterop <code>BroadcastChannel</code>;
+    a full page refresh reloads from the database.
+</p>
+
+<ol>
+    <li>Run <code>dotnet run --project AppHost</code> (starts Api + Web).</li>
+    <li>Open <a href="board" target="_blank">/board</a>.</li>
+    <li>Open the same URL in a second window, drag a box, then refresh either window.</li>
+</ol>
+
+<p>
+    Tip: use two windows, not two tabs in the same window — switching tabs usually cancels an HTML5 drag.
+</p>
+
+<p><a class="btn btn-primary" href="board">Open board</a></p>
